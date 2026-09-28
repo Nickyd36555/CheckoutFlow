@@ -288,7 +288,7 @@ class Automations {
 	 * Enroll an email into an automation (once per ref).
 	 */
 	public static function enroll( $automation, $email, $ref, $ctx = array() ) {
-		if ( empty( $automation['steps'] ) || Queue::exists( 'automation', $automation['id'], $ref ) ) {
+		if ( empty( $automation['steps'] ) || Queue::exists( 'automation', $automation['id'], $ref, $email ) ) {
 			return;
 		}
 		$c = Contacts::get_by_email( $email );
@@ -326,6 +326,9 @@ class Automations {
 				if ( 'recovered' === $cart['status'] ) {
 					return 'cart recovered';
 				}
+				if ( \CheckoutFlow\Recovery\Recovery::cart_ordered( $cart ) ) {
+					return 'ordered';
+				}
 				break;
 			case 'order_paid':
 			case 'order_completed':
@@ -349,7 +352,9 @@ class Automations {
 	public static function on_cart_abandoned( $cart ) {
 		foreach ( self::active_for( 'cart_abandoned' ) as $a ) {
 			$min = isset( $a['trigger_settings']['min_total'] ) ? (float) $a['trigger_settings']['min_total'] : 0;
-			if ( (float) $cart['total'] >= $min ) {
+			// One recovery sequence per shopper per week, however many carts/devices/captures.
+			$recent = Queue::enrolled_since( $a['id'], $cart['email'], 'cart:', gmdate( 'Y-m-d H:i:s', time() - WEEK_IN_SECONDS ) );
+			if ( (float) $cart['total'] >= $min && ! $recent ) {
 				self::enroll( $a, $cart['email'], 'cart:' . $cart['id'], array( 'cart_id' => (int) $cart['id'] ) );
 			}
 		}

@@ -50,9 +50,17 @@ class Queue {
 		);
 	}
 
-	public static function exists( $source, $source_id, $ref ) {
+	public static function exists( $source, $source_id, $ref, $email ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . DB::t( 'queue' ) . ' WHERE source = %s AND source_id = %d AND ref = %s LIMIT 1', $source, $source_id, $ref ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . DB::t( 'queue' ) . ' WHERE source = %s AND source_id = %d AND ref = %s AND email = %s LIMIT 1', $source, $source_id, $ref, strtolower( $email ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * Was this email enrolled in the automation for any ref starting with $prefix recently?
+	 */
+	public static function enrolled_since( $automation_id, $email, $prefix, $since ) {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . DB::t( 'queue' ) . " WHERE source = 'automation' AND source_id = %d AND email = %s AND ref LIKE %s AND created_at >= %s LIMIT 1", $automation_id, strtolower( $email ), $wpdb->esc_like( $prefix ) . '%', $since ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/**
@@ -150,7 +158,7 @@ class Queue {
 
 		$tags    = Merge_Tags::values( $render_ctx );
 		$subject = wp_specialchars_decode( Merge_Tags::apply( $message['subject'], $tags, 'text' ), ENT_QUOTES );
-		$html    = Renderer::render( isset( $message['design'] ) ? $message['design'] : array(), $render_ctx );
+		$html    = Renderer::render( isset( $message['design'] ) ? $message['design'] : array(), $render_ctx, true );
 		if ( Settings::get( 'email_tracking' ) ) {
 			$html = self::add_tracking( $html, (int) $row['id'] );
 		}
@@ -274,7 +282,7 @@ class Queue {
 		}
 
 		if ( isset( $_GET['cf_c'], $_GET['u'] ) ) {
-			$target = rawurldecode( wp_unslash( $_GET['u'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			$target = wp_unslash( $_GET['u'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- already decoded once by PHP; verified by signature.
 			$id     = self::verify( 'c', wp_unslash( $_GET['cf_c'] ), $target ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 			if ( ! $id ) {
 				wp_safe_redirect( home_url( '/' ) );

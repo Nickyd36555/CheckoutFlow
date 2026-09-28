@@ -24,7 +24,7 @@ The FunnelKit plugins you were running add up to about 3,500 PHP files. Checkout
 
 1. Zip this folder (or clone it) into `wp-content/plugins/checkoutflow` and activate **CheckoutFlow**. WooCommerce 7.0+ and PHP 7.4+ are required.
 2. **Deactivate the FunnelKit plugins** (Funnel Builder, FunnelKit Cart, FunnelKit Automations + Pro + Connectors). Running both will double up the side cart and the recovery emails.
-3. Go to **CheckoutFlow → Settings → Email & SMTP**: enter your SMTP host/port/username/password, save, and click **Send test**.
+3. Go to **CheckoutFlow → Settings → Email & SMTP** (administrators only): enter your SMTP host/port/username/password, save, and click **Send test**.
 4. Go to **CheckoutFlow → Automations**. The **Abandoned cart recovery** automation is created for you but **paused**. Review its three emails, then switch it to **Active**.
 5. Optionally: **Contacts → Import customers from orders**, and import your FunnelKit contacts from CSV (FunnelKit → Contacts → Export, then import here; tick the consent box only for people who opted in).
 
@@ -55,7 +55,7 @@ define( 'CHECKOUTFLOW_SMTP_PASSWORD', 'your-password' );
 1. On the checkout page, the email, name, and phone are saved as soon as they're entered. The cart shows under **Abandoned Carts → In checkout now**.
 2. After the "abandoned after" time (default 15 minutes) with no activity, the cart becomes **Abandoned** and active *Cart abandoned* automations enroll it.
 3. Step delays are counted from the moment of abandonment (for example 1 h, 24 h, 72 h). Each email can include the cart contents, a `{recovery_url}` button that rebuilds the cart and pre-fills checkout, and a unique single-use coupon locked to that customer's email.
-4. When the customer pays, the rest of the sequence is cancelled. The cart is marked **Recovered** if an email was sent or the recovery link was used; otherwise it's simply removed. Only the newest cart per email address is kept, so shoppers on two devices don't get two sequences.
+4. When the customer pays, the rest of the sequence is cancelled. The cart is marked **Recovered** if an email was sent or the recovery link was used; otherwise it's simply removed. Each shopper gets at most one recovery sequence per week, so people who check out on two devices don't get two sequences. Orders on hold (bank transfer, cheque) count as placed.
 
 ## Email tracking & deliverability
 

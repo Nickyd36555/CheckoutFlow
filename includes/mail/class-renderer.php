@@ -118,7 +118,7 @@ class Renderer {
 	 * @param mixed $design Decoded JSON.
 	 * @return array
 	 */
-	public static function sanitize( $design ) {
+	public static function sanitize( $design, $trusted = false ) {
 		$design   = is_array( $design ) ? $design : array();
 		$settings = array_merge( self::default_settings(), isset( $design['settings'] ) && is_array( $design['settings'] ) ? $design['settings'] : array() );
 
@@ -144,7 +144,7 @@ class Renderer {
 				$v = isset( $block[ $key ] ) ? $block[ $key ] : $default;
 				switch ( $key ) {
 					case 'html':
-						$b[ $key ] = ( 'html' === $type && current_user_can( 'unfiltered_html' ) ) ? (string) $v : wp_kses( (string) $v, self::allowed_html() );
+						$b[ $key ] = ( 'html' === $type && ( $trusted || current_user_can( 'unfiltered_html' ) ) ) ? (string) $v : wp_kses( (string) $v, self::allowed_html() );
 						break;
 					case 'url':
 					case 'src':
@@ -221,10 +221,11 @@ class Renderer {
 	 *
 	 * @param array $design  Design.
 	 * @param array $ctx     Context: contact, cart, order, coupon, preheader, unsubscribe_url, preview.
+	 * @param bool  $trusted Design comes from storage (already sanitized with the editor's capabilities on save).
 	 * @return string
 	 */
-	public static function render( $design, $ctx = array() ) {
-		$design = self::sanitize( $design );
+	public static function render( $design, $ctx = array(), $trusted = false ) {
+		$design = self::sanitize( $design, $trusted );
 		$s      = $design['settings'];
 		$tags   = Merge_Tags::values( array_merge( $ctx, array( 'accent' => $s['accent'] ) ) );
 

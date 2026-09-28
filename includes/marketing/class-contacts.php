@@ -47,10 +47,11 @@ class Contacts {
 	 *
 	 * @param string $email  Email.
 	 * @param array  $data   first_name, last_name, user_id.
-	 * @param string $source Where it came from (order, cart, import, manual).
+	 * @param string $source    Where it came from (order, cart, import, manual).
+	 * @param bool   $fill_only Only fill empty fields (for unverified input like cart capture).
 	 * @return array|null Contact row.
 	 */
-	public static function upsert( $email, $data = array(), $source = '' ) {
+	public static function upsert( $email, $data = array(), $source = '', $fill_only = false ) {
 		$email = strtolower( trim( (string) $email ) );
 		if ( ! is_email( $email ) ) {
 			return null;
@@ -74,7 +75,17 @@ class Contacts {
 					$fields
 				)
 			);
-		} elseif ( $fields ) {
+		} else {
+			if ( $fill_only ) {
+				foreach ( $fields as $k => $v ) {
+					if ( ! empty( $existing[ $k ] ) ) {
+						unset( $fields[ $k ] );
+					}
+				}
+			}
+			if ( ! $fields ) {
+				return $existing;
+			}
 			DB::update( 'contacts', $existing['id'], array_merge( $fields, array( 'updated_at' => $now ) ) );
 		}
 		return self::get_by_email( $email );

@@ -34,7 +34,9 @@ class Checkout {
 	}
 
 	public function maybe_skip_cart() {
-		if ( Settings::get( 'checkout_skip_cart' ) && is_cart() && WC()->cart && ! WC()->cart->is_empty() ) {
+		// Keep the cart page reachable when the cart has problems (e.g. stock), or checkout's
+		// "return to cart" would loop straight back here.
+		if ( Settings::get( 'checkout_skip_cart' ) && is_cart() && WC()->cart && ! WC()->cart->is_empty() && ! wc_notice_count( 'error' ) && true === WC()->cart->check_cart_items() ) {
 			wp_safe_redirect( wc_get_checkout_url() );
 			exit;
 		}

@@ -179,6 +179,9 @@ class Admin {
 
 	public function page_settings() {
 		$tabs = Settings::schema();
+		if ( ! current_user_can( 'manage_options' ) ) {
+			unset( $tabs['email'] );
+		}
 		$tab  = isset( $_GET['tab'] ) && isset( $tabs[ $_GET['tab'] ] ) ? sanitize_key( $_GET['tab'] ) : 'checkout'; // phpcs:ignore WordPress.Security.NonceVerification
 		$this->view( 'settings', array( 'tabs' => $tabs, 'tab' => $tab ) );
 	}
@@ -272,12 +275,18 @@ class Admin {
 	public function post_save_settings() {
 		self::check( 'cf_save_settings' );
 		$tab = isset( $_POST['tab'] ) ? sanitize_key( $_POST['tab'] ) : 'checkout';
+		if ( 'email' === $tab && ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Only administrators can change email delivery settings.', 'checkoutflow' ), 403 );
+		}
 		Settings::save( Settings::sanitize( isset( $_POST['cf'] ) ? (array) $_POST['cf'] : array(), $tab ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sanitized per field by schema.
 		self::redirect( self::url( 'settings', array( 'tab' => $tab ) ), __( 'Settings saved.', 'checkoutflow' ) );
 	}
 
 	public function post_test_email() {
 		self::check( 'cf_test_email' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Only administrators can change email delivery settings.', 'checkoutflow' ), 403 );
+		}
 		$to = isset( $_POST['to'] ) ? sanitize_email( wp_unslash( $_POST['to'] ) ) : '';
 		if ( ! is_email( $to ) ) {
 			self::redirect( self::url( 'settings', array( 'tab' => 'email' ) ), '!' . __( 'Enter a valid email address.', 'checkoutflow' ) );
@@ -540,7 +549,8 @@ class Admin {
 				Contacts::subscribe( $c['email'], true );
 			} elseif ( 'unsubscribe' === $do ) {
 				Contacts::unsubscribe( $c['email'] );
-			} elseif ( 'delete' === $do ) {
+			} elseif ( 'delete' === $do && 'unsubscribed' !== $c['status'] ) {
+				// Unsubscribed contacts are kept as a suppression list so they're never emailed again.
 				DB::delete( 'contacts', $id );
 			}
 		}

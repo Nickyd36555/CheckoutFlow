@@ -154,16 +154,10 @@ class Recovery {
 			$id = (int) $row['id'];
 		}
 
-		// One open cart per shopper: the newest one wins, so people who start checkout on
-		// two devices don't receive two recovery sequences.
-		global $wpdb;
-		$stale = $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM ' . DB::t( 'carts' ) . " WHERE email = %s AND id <> %d AND status IN ('active','abandoned')", $data['email'], $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		foreach ( $stale as $old ) {
-			Queue::cancel_pending( 'cart:' . $old, null, 'newer cart' );
-			DB::delete( 'carts', $old );
-		}
-
-		Contacts::upsert( $email, array( 'first_name' => $data['first_name'], 'last_name' => $data['last_name'], 'user_id' => $data['user_id'] ), 'cart' );
+		// Duplicate carts for one email (two devices) are handled at enrollment: one
+		// recovery sequence per shopper per week. Other sessions' carts are never touched
+		// here, since this endpoint is unauthenticated.
+		Contacts::upsert( $email, array( 'first_name' => $data['first_name'], 'last_name' => $data['last_name'] ), 'cart', true );
 		wp_send_json_success( array( 'captured' => true ) );
 	}
 
@@ -263,7 +257,8 @@ class Recovery {
 	 */
 	private function prefill_customer( $row ) {
 		$customer = WC()->customer;
-		if ( ! $customer ) {
+		// Only prefill guest sessions: a link must never rewrite a logged-in account's details.
+		if ( ! $customer || is_user_logged_in() ) {
 			return;
 		}
 		$fields = DB::json( $row['fields'] );
@@ -301,7 +296,7 @@ class Recovery {
 	 * When the order is paid, close out every open cart for this customer.
 	 */
 	public function order_paid( $order_id, $from, $to, $order ) {
-		if ( ! $order instanceof \WC_Order || ! in_array( $to, wc_get_is_paid_statuses(), true ) || $order->get_meta( '_cf_cart_closed' ) ) {
+		if ( ! $order instanceof \WC_Order || ! in_array( $to, self::placed_statuses(), true ) || $order->get_meta( '_cf_cart_closed' ) ) {
 			return;
 		}
 		global $wpdb;
@@ -325,6 +320,29 @@ class Recovery {
 		$order->save_meta_data();
 	}
 
+	/**
+	 * Statuses meaning the customer completed checkout (incl. on-hold for BACS/cheque).
+	 *
+	 * @return string[]
+	 */
+	public static function placed_statuses() {
+		return array_merge( wc_get_is_paid_statuses(), array( 'on-hold' ) );
+	}
+
+	/**
+	 * Did the order linked to this cart go through?
+	 *
+	 * @param array $cart Cart row.
+	 * @return bool
+	 */
+	public static function cart_ordered( $cart ) {
+		if ( empty( $cart['order_id'] ) ) {
+			return false;
+		}
+		$order = wc_get_order( $cart['order_id'] );
+		return $order && in_array( $order->get_status(), self::placed_statuses(), true );
+	}
+
 	/* ---------- scheduled ---------- */
 
 	/**
@@ -337,6 +355,11 @@ class Recovery {
 		$ids     = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'active' AND updated_at < %s LIMIT 200", gmdate( 'Y-m-d H:i:s', time() - $minutes * MINUTE_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		foreach ( $ids as $id ) {
+			$row = DB::get( 'carts', $id );
+			if ( $row && self::cart_ordered( $row ) ) {
+				DB::delete( 'carts', $id );
+				continue;
+			}
 			$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'abandoned', abandoned_at = %s WHERE id = %d AND status = 'active'", DB::now(), $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			if ( $claimed ) {
 				do_action( 'checkoutflow_cart_abandoned', DB::get( 'carts', $id ) );
