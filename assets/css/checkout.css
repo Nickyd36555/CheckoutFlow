@@ -1,0 +1,200 @@
+/* CheckoutFlow – checkout layout. Scoped to body.cf-checkout. */
+.cf-checkout {
+	--cf-accent: #1f6feb;
+	--cf-border: #dfe3e8;
+	--cf-muted: #6b7280;
+	--cf-panel: #f7f8fa;
+	--cf-radius: 8px;
+}
+
+/* ---------- Focused template chrome ---------- */
+body.cf-focused {
+	margin: 0;
+	background: #fff;
+	color: #1f2328;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	font-size: 15px;
+	line-height: 1.5;
+}
+.cf-focused .cf-wrap {
+	box-sizing: border-box;
+	max-width: 1120px;
+	margin: 0 auto;
+	padding: 0 20px;
+}
+.cf-focused .cf-header {
+	border-bottom: 1px solid var(--cf-border);
+	background: #fff;
+}
+.cf-focused .cf-header-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	min-height: 68px;
+}
+.cf-focused .cf-brand { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
+.cf-focused .cf-brand img { max-height: 44px; width: auto; display: block; }
+.cf-focused .cf-brand-name { font-size: 20px; font-weight: 700; }
+.cf-focused .cf-secure-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1a7f37;
+	text-transform: uppercase;
+	letter-spacing: .03em;
+}
+.cf-focused .cf-main { padding-top: 32px; padding-bottom: 48px; }
+.cf-focused .cf-footer {
+	border-top: 1px solid var(--cf-border);
+	padding: 20px 0 28px;
+	font-size: 13px;
+	color: var(--cf-muted);
+}
+.cf-focused .cf-footer .cf-wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.cf-focused .cf-footer a { color: inherit; }
+
+/* Basic form controls for the focused template, where theme styling may be minimal. */
+.cf-focused .woocommerce form .form-row { margin: 0 0 14px; padding: 0; }
+.cf-focused .woocommerce form .form-row label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.cf-focused .woocommerce form .form-row .input-text,
+.cf-focused .woocommerce form .form-row select,
+.cf-focused .woocommerce form .form-row textarea,
+.cf-focused .cf-coupon-input {
+	box-sizing: border-box;
+	width: 100%;
+	padding: 11px 12px;
+	border: 1px solid var(--cf-border);
+	border-radius: 6px;
+	background: #fff;
+	font: inherit;
+	color: inherit;
+}
+.cf-focused .woocommerce form .form-row .input-text:focus,
+.cf-focused .woocommerce form .form-row select:focus,
+.cf-focused .cf-coupon-input:focus {
+	outline: none;
+	border-color: var(--cf-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--cf-accent) 20%, transparent);
+}
+.cf-focused .woocommerce form .form-row.woocommerce-invalid .input-text { border-color: #cf222e; }
+.cf-focused h3 { font-size: 18px; margin: 0 0 14px; }
+
+/* ---------- Two-column layout ---------- */
+.cf-checkout form.checkout { box-sizing: border-box; }
+.cf-checkout form.checkout::after { content: ""; display: table; clear: both; }
+
+@media (min-width: 900px) {
+	.cf-checkout form.checkout {
+		display: grid;
+		grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+		column-gap: 48px;
+		align-items: start;
+	}
+	.cf-checkout form.checkout > * { grid-column: 1; }
+	.cf-checkout form.checkout > #customer_details { grid-row: 1 / span 20; }
+	.cf-checkout form.checkout > #order_review_heading { grid-column: 2; grid-row: 1; }
+	.cf-checkout form.checkout > #order_review {
+		grid-column: 2;
+		grid-row: 2 / span 19;
+		position: sticky;
+		top: 24px;
+	}
+	.admin-bar.cf-checkout form.checkout > #order_review { top: 56px; }
+}
+
+.cf-checkout form.checkout #customer_details,
+.cf-checkout form.checkout #order_review,
+.cf-checkout form.checkout #order_review_heading {
+	float: none !important;
+	width: auto !important;
+	max-width: none !important;
+	margin-left: 0 !important;
+	margin-right: 0 !important;
+}
+.cf-checkout #customer_details .col-1,
+.cf-checkout #customer_details .col-2 {
+	float: none !important;
+	width: 100% !important;
+	max-width: none !important;
+	padding: 0 !important;
+}
+.cf-checkout #customer_details .col-2 { margin-top: 12px; }
+
+/* ---------- Order summary panel ---------- */
+.cf-checkout #order_review_heading { margin: 0 !important; padding: 20px 20px 0; background: var(--cf-panel); border-radius: var(--cf-radius) var(--cf-radius) 0 0; font-size: 18px; }
+.cf-checkout #order_review {
+	margin-top: 0 !important;
+	background: var(--cf-panel);
+	padding: 12px 20px 20px;
+	border-radius: 0 0 var(--cf-radius) var(--cf-radius);
+}
+.cf-checkout #order_review table.shop_table {
+	width: 100%;
+	border: 0;
+	border-collapse: collapse;
+	margin: 0 0 16px;
+	background: transparent;
+}
+.cf-checkout #order_review table.shop_table th,
+.cf-checkout #order_review table.shop_table td {
+	border: 0;
+	border-bottom: 1px solid var(--cf-border);
+	padding: 10px 0;
+	background: transparent;
+	vertical-align: top;
+}
+.cf-checkout #order_review table.shop_table td:last-child,
+.cf-checkout #order_review table.shop_table th:last-child { text-align: right; }
+.cf-checkout #order_review table.shop_table thead { display: none; }
+.cf-checkout #order_review .order-total th,
+.cf-checkout #order_review .order-total td { font-size: 18px; font-weight: 700; border-bottom: 0; }
+
+/* Coupon in summary */
+.cf-checkout .cf-coupon-row td { text-align: left !important; }
+.cf-checkout .cf-coupon-toggle { color: var(--cf-accent); font-size: 14px; text-decoration: none; }
+.cf-checkout .cf-coupon-toggle:hover { text-decoration: underline; }
+.cf-checkout .cf-coupon-box { display: flex; gap: 8px; margin-top: 8px; }
+.cf-checkout .cf-coupon-box[hidden] { display: none; }
+.cf-checkout .cf-coupon-box .cf-coupon-input { flex: 1; min-width: 0; }
+.cf-checkout .cf-coupon-box .button { white-space: nowrap; }
+
+/* Payment + place order */
+.cf-checkout #payment { background: transparent; border-radius: 0; }
+.cf-checkout #payment ul.payment_methods { padding: 0 0 12px; border-bottom: 1px solid var(--cf-border); margin: 0; list-style: none; }
+.cf-checkout #payment ul.payment_methods li { padding: 6px 0; }
+.cf-checkout #payment div.payment_box { background: #fff; border-radius: 6px; padding: 12px; margin: 8px 0 0; font-size: 14px; }
+.cf-checkout #payment div.payment_box::before { display: none; }
+.cf-checkout #payment .place-order { padding: 16px 0 0; margin: 0; }
+.cf-checkout #place_order {
+	display: block;
+	width: 100%;
+	float: none;
+	padding: 16px 20px;
+	border: 0;
+	border-radius: 6px;
+	background: var(--cf-accent);
+	color: #fff;
+	font-size: 17px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: filter .15s;
+}
+.cf-checkout #place_order:hover { filter: brightness(.93); }
+
+.cf-checkout .cf-trust {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	margin-top: 14px;
+	font-size: 13px;
+	color: var(--cf-muted);
+}
+.cf-checkout .cf-trust svg { flex: 0 0 auto; margin-top: 2px; color: #1a7f37; }
+.cf-checkout .cf-trust p { margin: 0; }
+
+@media (max-width: 899px) {
+	.cf-checkout #order_review_heading { margin-top: 24px !important; }
+}

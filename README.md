@@ -1,0 +1,93 @@
+# CheckoutFlow
+
+A lean replacement for FunnelKit (Funnel Builder, Cart for WooCommerce, and Automations) that keeps only the features that make money:
+
+| Feature | What you get |
+|---|---|
+| **Checkout** | Distraction-free two-column checkout, sticky order summary, email-first field order, hide/require fields, coupon tucked into the summary, trust/guarantee text, optional "skip cart page" |
+| **Side cart** | Slide-out cart with quantity controls, coupons, free-shipping progress bar, cross-sell recommendations, AJAX add-to-cart on product pages, floating button or any `.cf-open-cart` element |
+| **Abandoned cart recovery** | Captures the email as it's typed at checkout, marks carts abandoned after N minutes, sends a timed email sequence with a one-click "restore cart" link, stops as soon as they order, reports recovered revenue |
+| **Email marketing** | Contacts (synced from orders + checkout opt-in), campaigns with audience segments, automations (cart abandoned, order paid, order completed, win-back, welcome), unique coupon codes, open/click/revenue tracking |
+| **Email builder** | Drag-and-drop blocks (heading, text, button, image, products, cart items, order items, coupon, divider, spacer, HTML) with a live preview rendered by the same code that sends |
+| **SMTP** | Send through any SMTP provider (SES, Brevo, Mailgun, Postmark, SendGrid, Google Workspace, M365…), optionally for all WordPress/WooCommerce mail too |
+
+## Why it's faster than FunnelKit
+
+The FunnelKit plugins you were running add up to about 3,500 PHP files. CheckoutFlow has about 30.
+
+- **Nothing loads where it isn't needed.** Checkout CSS/JS only loads on the checkout page. The side cart adds one small CSS file and one ~9 KB script (vanilla JS, `defer`). Admin code only loads in wp-admin.
+- **No extra requests for empty carts.** The side cart only calls the server if the WooCommerce cart cookie says there's something in the cart. When WooCommerce's cart fragments are already running, it piggybacks on them. It's also safe to page-cache: the drawer markup contains no cart data.
+- **Optional: turn off WooCommerce cart fragments** (Settings → Side Cart), a common cause of slow uncached `admin-ajax` requests.
+- **One settings row** (autoloaded), five small indexed tables, and one lightweight background job. No React bundles, no CRM dashboards, no bundled page builders.
+
+## Install
+
+1. Zip this folder (or clone it) into `wp-content/plugins/checkoutflow` and activate **CheckoutFlow**. WooCommerce 7.0+ and PHP 7.4+ are required.
+2. **Deactivate the FunnelKit plugins** (Funnel Builder, FunnelKit Cart, FunnelKit Automations + Pro + Connectors). Running both will double up the side cart and the recovery emails.
+3. Go to **CheckoutFlow → Settings → Email & SMTP**: enter your SMTP host/port/username/password, save, and click **Send test**.
+4. Go to **CheckoutFlow → Automations**. The **Abandoned cart recovery** automation is created for you but **paused**. Review its three emails, then switch it to **Active**.
+5. Optionally: **Contacts → Import customers from orders**, and import your FunnelKit contacts from CSV (FunnelKit → Contacts → Export, then import here; tick the consent box only for people who opted in).
+
+### Cron (important for email timing)
+
+Emails go out from a job that runs every minute through WP-Cron. On low-traffic sites WP-Cron only runs when someone visits, so add a real cron job and disable the built-in trigger:
+
+```
+# wp-config.php
+define( 'DISABLE_WP_CRON', true );
+
+# server crontab
+* * * * * curl -s https://yourstore.com/wp-cron.php?doing_wp_cron > /dev/null
+```
+
+The dashboard warns you if background jobs look delayed.
+
+### Keeping the SMTP password out of the database
+
+The password is stored encrypted with your site's salts. To keep it out of the database entirely, add this to `wp-config.php` (it takes priority over the saved value):
+
+```php
+define( 'CHECKOUTFLOW_SMTP_PASSWORD', 'your-password' );
+```
+
+## How recovery works
+
+1. On the checkout page, the email, name, and phone are saved as soon as they're entered. The cart shows under **Abandoned Carts → In checkout now**.
+2. After the "abandoned after" time (default 15 minutes) with no activity, the cart becomes **Abandoned** and active *Cart abandoned* automations enroll it.
+3. Step delays are counted from the moment of abandonment (for example 1 h, 24 h, 72 h). Each email can include the cart contents, a `{recovery_url}` button that rebuilds the cart and pre-fills checkout, and a unique single-use coupon locked to that customer's email.
+4. When the customer pays, the rest of the sequence is cancelled. The cart is marked **Recovered** if an email was sent or the recovery link was used; otherwise it's simply removed. Only the newest cart per email address is kept, so shoppers on two devices don't get two sequences.
+
+## Email tracking & deliverability
+
+- Every email is sent as HTML with a plain-text alternative, plus `List-Unsubscribe` and one-click unsubscribe headers (required by Gmail/Yahoo for bulk senders).
+- Opens (pixel) and clicks (signed redirect links) can be switched off under Settings → Email & SMTP.
+- An order placed within 7 days of clicking an email is credited to that email (revenue appears in campaign and automation stats).
+- Unsubscribed contacts never receive campaigns or automations. The unsubscribe page asks for confirmation so link-scanners can't unsubscribe people.
+- Campaigns default to **opted-in contacts only**. You can include customers without explicit consent, but make sure you have a lawful basis where you sell.
+
+## Merge tags
+
+`{first_name}` `{last_name}` `{email}` `{site_name}` `{site_url}` `{shop_url}` `{store_address}` `{unsubscribe_url}` `{cart_items}` `{cart_total}` `{recovery_url}` `{recovery_button}` `{order_number}` `{order_total}` `{order_date}` `{order_items}` `{order_url}` `{review_url}` `{coupon_code}` `{coupon_amount}` `{coupon_expiry}`
+
+Any tag accepts a fallback: `{first_name|there}`.
+
+## Theme overrides
+
+Copy any file from `templates/` to `yourtheme/checkoutflow/` to override it (`checkout-focused.php`, `side-cart.php`, `side-cart-content.php`).
+
+## Developer hooks
+
+| Hook | Type | Purpose |
+|---|---|---|
+| `checkoutflow_free_shipping_threshold` | filter | Change the free shipping bar target |
+| `checkoutflow_cart_recommendation_ids` | filter | Change the side cart recommendations |
+| `checkoutflow_merge_tags` | filter | Add or modify merge tag values |
+| `checkoutflow_cart_abandoned` | action | A cart was marked abandoned (row array) |
+| `checkoutflow_order_recorded` | action | A paid order was counted for a contact |
+| `checkoutflow_contact_subscribed` | action | A contact opted in |
+
+## Notes & limits
+
+- Checkout layout and field options apply to the **classic** checkout (`[woocommerce_checkout]`). On the block-based Checkout, cart capture, recovery, and the marketing opt-in still work (the opt-in uses WooCommerce's Additional Checkout Fields API, WooCommerce 8.9+).
+- Order bumps and one-click post-purchase upsells are intentionally not included.
+- Uninstalling (deleting the plugin) removes its tables and settings. Define `CHECKOUTFLOW_KEEP_DATA` in `wp-config.php` to keep them.
