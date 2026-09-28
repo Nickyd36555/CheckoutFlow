@@ -4,8 +4,8 @@ A lean replacement for FunnelKit (Funnel Builder, Cart for WooCommerce, and Auto
 
 | Feature | What you get |
 |---|---|
-| **Checkout** | Distraction-free two-column checkout, sticky order summary, email-first field order, hide/require fields, coupon tucked into the summary, trust/guarantee text, optional "skip cart page" |
-| **Side cart** | Slide-out cart with quantity controls, coupons, free-shipping progress bar, cross-sell recommendations, AJAX add-to-cart on product pages, floating button or any `.cf-open-cart` element |
+| **Checkout** | Sectioned checkout (Contact → Shipping Address → Shipping Method → Payment), shipping-address-first with optional different billing address, labels inside fields, rich order summary (images, quantity +/−, remove, inline coupon, trust badges, your own notes), total on the Place Order button, rename/hide/require fields, optional distraction-free header, optional "skip cart page" |
+| **Side cart** | Slide-out cart with quantity controls, coupons, free-shipping progress bar, cross-sell recommendations, AJAX add-to-cart on product pages; opened from a floating button (left or right), a header menu cart icon with count badge and total, the `[checkoutflow_cart_icon]` shortcode, or any `.cf-open-cart` element |
 | **Abandoned cart recovery** | Captures the email as it's typed at checkout, marks carts abandoned after N minutes, sends a timed email sequence with a one-click "restore cart" link, stops as soon as they order, reports recovered revenue |
 | **Email marketing** | Contacts (synced from orders + checkout opt-in), campaigns with audience segments, automations (cart abandoned, order paid, order completed, win-back, welcome), unique coupon codes, open/click/revenue tracking |
 | **Email builder** | Drag-and-drop blocks (heading, text, button, image, products, cart items, order items, coupon, divider, spacer, HTML) with a live preview rendered by the same code that sends |
@@ -71,9 +71,13 @@ define( 'CHECKOUTFLOW_SMTP_PASSWORD', 'your-password' );
 
 Any tag accepts a fallback: `{first_name|there}`.
 
+## Header cart icon
+
+Settings → Side Cart → **Add cart to menu**: pick your header menu location (on block themes, "Header navigation block"). It shows the cart icon, a red count badge and the cart total, and opens the side cart. On page builders (Elementor, Divi…) place the shortcode `[checkoutflow_cart_icon]` in the header instead (`total="no"` hides the amount).
+
 ## Theme overrides
 
-Copy any file from `templates/` to `yourtheme/checkoutflow/` to override it (`checkout-focused.php`, `side-cart.php`, `side-cart-content.php`).
+Copy any file from `templates/` to `yourtheme/checkoutflow/` to override it (`checkout-focused.php`, `side-cart.php`, `side-cart-content.php`, `checkout/form-checkout.php`, `checkout/review-order.php`, `checkout/payment.php`).
 
 ## Developer hooks
 
@@ -88,6 +92,6 @@ Copy any file from `templates/` to `yourtheme/checkoutflow/` to override it (`ch
 
 ## Notes & limits
 
-- Checkout layout and field options apply to the **classic** checkout (`[woocommerce_checkout]`). On the block-based Checkout, cart capture, recovery, and the marketing opt-in still work (the opt-in uses WooCommerce's Additional Checkout Fields API, WooCommerce 8.9+).
+- Checkout layout and field options apply to the **classic** checkout (`[woocommerce_checkout]`, which FunnelKit also uses). The modern layout keeps every standard WooCommerce checkout hook, so gateways, package protection (Route) and store-credit plugins keep working, but test your payment methods on a staging copy before going live. On the block-based Checkout, cart capture, recovery, and the marketing opt-in still work (the opt-in uses WooCommerce's Additional Checkout Fields API, WooCommerce 8.9+).
 - Order bumps and one-click post-purchase upsells are intentionally not included.
 - Uninstalling (deleting the plugin) removes its tables and settings. Define `CHECKOUTFLOW_KEEP_DATA` in `wp-config.php` to keep them.

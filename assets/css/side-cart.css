@@ -1,6 +1,7 @@
 /* CheckoutFlow – side cart */
 :root {
 	--cfc-accent: #1f6feb;
+	--cfc-badge: #e02b27;
 	--cfc-width: 420px;
 	--cfc-text: #1f2328;
 	--cfc-muted: #6b7280;
@@ -251,6 +252,7 @@
 .cfc-fab:hover { transform: scale(1.05); }
 .cfc-fab.is-right { right: 20px; }
 .cfc-fab.is-left { left: 20px; }
+.cfc-fab .cf-cart-count { left: -2px; right: auto !important; }
 .cfc-fab .cf-cart-count, .cf-cart-link .cf-cart-count {
 	position: absolute;
 	top: -2px;
@@ -259,7 +261,7 @@
 	height: 22px;
 	padding: 0 6px;
 	border-radius: 11px;
-	background: var(--cfc-accent);
+	background: var(--cfc-badge);
 	color: #fff;
 	font-size: 12px;
 	font-weight: 700;
@@ -267,7 +269,13 @@
 	text-align: center;
 }
 .cfc-fab.hide-empty.is-empty { display: none; }
-.cf-cart-link { position: relative; display: inline-flex; padding: 6px; color: inherit; }
-.cf-cart-link .cf-cart-count { top: -4px; right: -8px; }
+/* Header / shortcode cart icon */
+.cf-cart-link { display: inline-flex; align-items: center; gap: 8px; padding: 6px 4px; color: inherit; text-decoration: none; }
+.cf-cart-icon { position: relative; display: inline-flex; }
+.cf-cart-link .cf-cart-count { top: -9px; right: -9px; min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 5px; font-size: 11px; }
+.cf-cart-total { font-size: .95em; opacity: .85; white-space: nowrap; }
+.cf-cart-total .woocommerce-Price-amount { font-weight: inherit; }
+.cf-menu-cart { display: flex; align-items: center; }
+.cf-cart-link .cf-cart-count[data-count="0"], .cfc-fab .cf-cart-count[data-count="0"] { display: none; }
 
 html.cfc-locked, html.cfc-locked body { overflow: hidden; }

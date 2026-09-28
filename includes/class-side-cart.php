@@ -23,6 +23,8 @@ class Side_Cart {
 		add_action( 'wp_footer', array( $this, 'shell' ) );
 		add_filter( 'woocommerce_add_to_cart_fragments', array( $this, 'fragments' ) );
 		add_shortcode( 'checkoutflow_cart_icon', array( $this, 'shortcode_icon' ) );
+		add_filter( 'wp_nav_menu_items', array( $this, 'menu_item' ), 20, 2 );
+		add_filter( 'render_block_core/navigation', array( $this, 'navigation_block_item' ), 20 );
 
 		foreach ( array( 'get', 'add', 'qty', 'remove', 'coupon', 'remove_coupon' ) as $action ) {
 			add_action( 'wc_ajax_cf_cart_' . $action, array( $this, 'ajax_' . $action ) );
@@ -42,12 +44,16 @@ class Side_Cart {
 		if ( Settings::get( 'cart_disable_fragments' ) ) {
 			wp_dequeue_script( 'wc-cart-fragments' );
 		}
-		if ( ! $this->is_active_page() ) {
+		$menu_icon = '' !== (string) Settings::get( 'cart_menu_location' );
+		if ( ! $this->is_active_page() && ! $menu_icon ) {
 			return;
 		}
 
 		list( $css, $ver ) = asset( 'css/side-cart.css' );
 		wp_enqueue_style( 'checkoutflow-cart', $css, array(), $ver );
+		if ( ! $this->is_active_page() ) {
+			return; // Cart/checkout: style the header icon only; it links to the cart page.
+		}
 		wp_add_inline_style(
 			'checkoutflow-cart',
 			sprintf( ':root{--cfc-accent:%s;--cfc-width:%dpx;}', Settings::get( 'cart_accent_color' ), (int) Settings::get( 'cart_width' ) )
@@ -83,10 +89,60 @@ class Side_Cart {
 		return '<div class="cf-cart-content" data-count="0"><div class="cfc-loading-state" aria-hidden="true"></div></div>';
 	}
 
-	public function shortcode_icon() {
+	/**
+	 * Cart count/total for icons. Real values on pages that are never page-cached
+	 * (cart, checkout, logged-in); elsewhere a neutral value that JS/fragments fill in.
+	 *
+	 * @return array{0:int,1:string}
+	 */
+	private function badge_values() {
+		if ( WC()->cart && ( is_cart() || is_checkout() || is_user_logged_in() ) ) {
+			return array( (int) WC()->cart->get_cart_contents_count(), wc_price( cart_total_after_discounts() ) );
+		}
+		return array( 0, wc_price( 0 ) );
+	}
+
+	/**
+	 * Cart icon link: [checkoutflow_cart_icon total="yes"]
+	 *
+	 * @param array|string $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function shortcode_icon( $atts = array() ) {
+		$atts = shortcode_atts( array( 'total' => Settings::get( 'cart_menu_total' ) ? 'yes' : 'no' ), $atts, 'checkoutflow_cart_icon' );
+		list( $count, $total ) = $this->badge_values();
 		return '<a href="' . esc_url( wc_get_cart_url() ) . '" class="cf-open-cart cf-cart-link" aria-label="' . esc_attr__( 'Open cart', 'checkoutflow' ) . '">'
-			. '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>'
-			. '<span class="cf-cart-count">0</span></a>';
+			. '<span class="cf-cart-icon"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3h2.6l2.4 12.2a1.6 1.6 0 0 0 1.6 1.3h8.8a1.6 1.6 0 0 0 1.6-1.2L21.5 7H6"/></svg>'
+			. '<span class="cf-cart-count" data-count="' . esc_attr( $count ) . '">' . esc_html( $count ) . '</span></span>'
+			. ( 'yes' === $atts['total'] ? '<span class="cf-cart-total">' . wp_kses_post( $total ) . '</span>' : '' )
+			. '</a>';
+	}
+
+	/**
+	 * Append the cart icon to the chosen classic menu location.
+	 */
+	public function menu_item( $items, $args ) {
+		$location = Settings::get( 'cart_menu_location' );
+		if ( $location && isset( $args->theme_location ) && $args->theme_location === $location ) {
+			$items .= '<li class="menu-item cf-menu-cart">' . $this->shortcode_icon() . '</li>';
+		}
+		return $items;
+	}
+
+	/**
+	 * Block themes: append to the first navigation block on the page.
+	 */
+	public function navigation_block_item( $html ) {
+		static $done = false;
+		if ( $done || '__block_navigation' !== Settings::get( 'cart_menu_location' ) ) {
+			return $html;
+		}
+		$pos = strrpos( $html, '</ul>' );
+		if ( false === $pos ) {
+			return $html;
+		}
+		$done = true;
+		return substr_replace( $html, '<li class="wp-block-navigation-item cf-menu-cart">' . $this->shortcode_icon() . '</li>', $pos, 0 );
 	}
 
 	/**
@@ -166,6 +222,7 @@ class Side_Cart {
 		$count                                = WC()->cart->get_cart_contents_count();
 		$fragments['div.cf-cart-content']     = $this->content_html();
 		$fragments['span.cf-cart-count']      = '<span class="cf-cart-count" data-count="' . esc_attr( $count ) . '">' . esc_html( $count ) . '</span>';
+		$fragments['span.cf-cart-total']      = '<span class="cf-cart-total">' . wp_kses_post( wc_price( cart_total_after_discounts() ) ) . '</span>';
 		return $fragments;
 	}
 

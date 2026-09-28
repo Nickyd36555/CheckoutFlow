@@ -44,6 +44,7 @@ class Settings {
 		'optin_enabled'    => true,
 		'smtp_enabled'     => false,
 		'smtp_all_mail'    => true,
+		'checkout_style'   => 'modern',
 	);
 
 	/**
@@ -56,6 +57,20 @@ class Settings {
 		}
 		$saved = get_option( self::OPTION, array() );
 		return (bool) ( is_array( $saved ) && array_key_exists( $key, $saved ) ? $saved[ $key ] : self::BOOT_FLAGS[ $key ] );
+	}
+
+	/**
+	 * Raw boot-time value (see BOOT_FLAGS) without building the translated schema.
+	 *
+	 * @param string $key Key.
+	 * @return mixed
+	 */
+	public static function boot( $key ) {
+		if ( null !== self::$cache ) {
+			return self::$cache[ $key ];
+		}
+		$saved = get_option( self::OPTION, array() );
+		return is_array( $saved ) && array_key_exists( $key, $saved ) ? $saved[ $key ] : self::BOOT_FLAGS[ $key ];
 	}
 
 	/**
@@ -153,6 +168,22 @@ class Settings {
 	}
 
 	/**
+	 * Theme menu locations for the "Add cart to menu" setting.
+	 *
+	 * @return array
+	 */
+	private static function menu_locations() {
+		$out = array( '' => __( 'Don\'t add', 'checkoutflow' ) );
+		foreach ( get_registered_nav_menus() as $slug => $label ) {
+			$out[ $slug ] = $label;
+		}
+		if ( function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() ) {
+			$out['__block_navigation'] = __( 'Header navigation block (block themes)', 'checkoutflow' );
+		}
+		return $out;
+	}
+
+	/**
 	 * Encrypt a secret with a key derived from the site's auth salts.
 	 *
 	 * @param string $plain Plain text.
@@ -219,6 +250,22 @@ class Settings {
 				'label'   => __( 'Enable checkout optimizations', 'checkoutflow' ),
 				'default' => true,
 			),
+			'checkout_style'         => array(
+				'type'    => 'select',
+				'label'   => __( 'Checkout form style', 'checkoutflow' ),
+				'options' => array(
+					'modern'  => __( 'Modern (sectioned form, rich order summary)', 'checkoutflow' ),
+					'classic' => __( 'Classic (WooCommerce form, two-column layout)', 'checkoutflow' ),
+				),
+				'default' => 'modern',
+				'desc'    => __( 'Modern: Contact / Shipping Address / Shipping Method / Payment sections, product images and quantity controls in the summary.', 'checkoutflow' ),
+			),
+			'checkout_shipping_first' => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Ask for the shipping address first', 'checkoutflow' ),
+				'default' => true,
+				'desc'    => __( 'Modern style: billing address is copied from shipping unless the customer ticks "Use a different billing address".', 'checkoutflow' ),
+			),
 			'checkout_template'      => array(
 				'type'    => 'select',
 				'label'   => __( 'Checkout layout', 'checkoutflow' ),
@@ -245,6 +292,16 @@ class Settings {
 				'label'   => __( 'Accent color', 'checkoutflow' ),
 				'default' => '#1f6feb',
 			),
+			'checkout_banner'        => array(
+				'type'    => 'url',
+				'label'   => __( 'Banner image above the form', 'checkoutflow' ),
+				'default' => '',
+			),
+			'checkout_button_total'  => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Show the order total on the place order button', 'checkoutflow' ),
+				'default' => true,
+			),
 			'checkout_button_text'   => array(
 				'type'    => 'text',
 				'label'   => __( 'Place order button text', 'checkoutflow' ),
@@ -260,11 +317,26 @@ class Settings {
 				'type'    => 'select',
 				'label'   => __( 'Coupon field', 'checkoutflow' ),
 				'options' => array(
+					'inline'  => __( 'In the order summary (always visible)', 'checkoutflow' ),
 					'summary' => __( 'In the order summary (collapsed link)', 'checkoutflow' ),
 					'default' => __( 'WooCommerce default (above the form)', 'checkoutflow' ),
 					'hidden'  => __( 'Hidden', 'checkoutflow' ),
 				),
-				'default' => 'summary',
+				'default' => 'inline',
+			),
+			'checkout_badges'        => array(
+				'type'    => 'textarea',
+				'label'   => __( 'Trust badges (order summary)', 'checkoutflow' ),
+				'default' => __( "Satisfaction Guarantee | 100% Money Back Guarantee | shield\nFast Shipping | Your choice of shipping speed | truck\nSecure Checkout | Your information is protected | lock", 'checkoutflow' ),
+				'rows'    => 4,
+				'desc'    => __( 'One per line: Title | Text | icon. Icons: shield, truck, lock, box, star, refresh, chat, check. Leave empty to hide.', 'checkoutflow' ),
+			),
+			'checkout_summary_html'  => array(
+				'type'    => 'html',
+				'label'   => __( 'Text under the order summary', 'checkoutflow' ),
+				'default' => '',
+				'rows'    => 6,
+				'desc'    => __( 'E.g. shipping policy or processing times. Basic HTML allowed.', 'checkoutflow' ),
 			),
 			'checkout_trust_text'    => array(
 				'type'    => 'html',
@@ -282,6 +354,12 @@ class Settings {
 				'label'   => __( 'Company name', 'checkoutflow' ),
 				'options' => $field_states,
 				'default' => 'hidden',
+			),
+			'field_company_label'    => array(
+				'type'    => 'text',
+				'label'   => __( 'Company field label', 'checkoutflow' ),
+				'default' => '',
+				'desc'    => __( 'Rename the company field (e.g. "Lab Name"). Leave empty for the default.', 'checkoutflow' ),
 			),
 			'field_billing_address_2' => array(
 				'type'    => 'select',
@@ -337,6 +415,18 @@ class Settings {
 				'type'    => 'checkbox',
 				'label'   => __( 'Hide floating button when the cart is empty', 'checkoutflow' ),
 				'default' => false,
+			),
+			'cart_menu_location'        => array(
+				'type'    => 'select',
+				'label'   => __( 'Add cart to menu', 'checkoutflow' ),
+				'options' => self::menu_locations(),
+				'default' => '',
+				'desc'    => __( 'Shows a cart icon with item count and total in your header menu. It opens the side cart.', 'checkoutflow' ),
+			),
+			'cart_menu_total'           => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Show cart total next to the menu icon', 'checkoutflow' ),
+				'default' => true,
 			),
 			'cart_auto_open'            => array(
 				'type'    => 'checkbox',

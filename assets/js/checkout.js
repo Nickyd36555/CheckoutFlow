@@ -1,11 +1,18 @@
-/* CheckoutFlow – coupon field inside the order summary. */
+/* CheckoutFlow – checkout enhancements: summary coupon, quantity controls, address helpers. */
 ( function ( $ ) {
 	'use strict';
 	if ( typeof wc_checkout_params === 'undefined' ) {
 		return;
 	}
 
+	var T = window.checkoutflowCheckout || {};
 	var $body = $( document.body );
+
+	function endpoint( name ) {
+		return wc_checkout_params.wc_ajax_url.toString().replace( '%%endpoint%%', name );
+	}
+
+	/* ---------- coupon in the summary ---------- */
 
 	$body.on( 'click', '.cf-coupon-toggle', function ( e ) {
 		e.preventDefault();
@@ -16,14 +23,14 @@
 		}
 	} );
 
-	function apply( $box ) {
+	function applyCoupon( $box ) {
 		var code = $.trim( $box.find( '.cf-coupon-input' ).val() );
 		if ( ! code ) {
 			return;
 		}
 		var $btn = $box.find( '.cf-coupon-apply' ).prop( 'disabled', true );
 
-		$.post( wc_checkout_params.wc_ajax_url.toString().replace( '%%endpoint%%', 'apply_coupon' ), {
+		$.post( endpoint( 'apply_coupon' ), {
 			security: wc_checkout_params.apply_coupon_nonce,
 			coupon_code: code
 		} ).done( function ( html ) {
@@ -38,14 +45,143 @@
 
 	$body.on( 'click', '.cf-coupon-apply', function ( e ) {
 		e.preventDefault();
-		apply( $( this ).closest( '.cf-coupon-box' ) );
+		applyCoupon( $( this ).closest( '.cf-coupon-box' ) );
 	} );
 
 	// Enter inside the coupon input must not submit the whole checkout form.
 	$body.on( 'keydown', '.cf-coupon-input', function ( e ) {
 		if ( e.key === 'Enter' ) {
 			e.preventDefault();
-			apply( $( this ).closest( '.cf-coupon-box' ) );
+			applyCoupon( $( this ).closest( '.cf-coupon-box' ) );
 		}
 	} );
+
+	/* ---------- quantity / remove in the summary (modern layout) ---------- */
+
+	var qtyTimer = null;
+
+	function setQty( $row, qty ) {
+		clearTimeout( qtyTimer );
+		qtyTimer = setTimeout( function () {
+			var $summary = $row.closest( '.cf-summary' );
+			$summary.addClass( 'is-updating' );
+			$.post( endpoint( 'cf_checkout_qty' ), {
+				nonce: $summary.data( 'nonce' ),
+				key: $row.data( 'key' ),
+				qty: qty
+			} ).done( function ( res ) {
+				if ( ! res || ! res.success || res.data.empty ) {
+					window.location.reload();
+					return;
+				}
+				$body.trigger( 'update_checkout' );
+			} ).fail( function () {
+				window.location.reload();
+			} );
+		}, 400 );
+	}
+
+	$body.on( 'click', '.cf-summary .cf-qty-btn', function () {
+		var $row = $( this ).closest( 'tr' );
+		var $input = $row.find( '.cf-qty-input' );
+		var max = parseInt( $input.attr( 'max' ) || '0', 10 );
+		var v = Math.max( 0, ( parseInt( $input.val(), 10 ) || 0 ) + parseInt( $( this ).data( 'step' ), 10 ) );
+		if ( max > 0 ) {
+			v = Math.min( max, v );
+		}
+		$input.val( v );
+		$row.find( '.cf-item-qty-badge' ).text( v );
+		setQty( $row, v );
+	} );
+
+	$body.on( 'change', '.cf-summary .cf-qty-input', function () {
+		setQty( $( this ).closest( 'tr' ), Math.max( 0, parseInt( $( this ).val(), 10 ) || 0 ) );
+	} );
+
+	$body.on( 'click', '.cf-summary .cf-item-remove', function () {
+		var $row = $( this ).closest( 'tr' ).css( 'opacity', 0.4 );
+		setQty( $row, 0 );
+	} );
+
+	/* ---------- "+ Add apartment" link ---------- */
+	// A class (not .hide()) because WooCommerce's address-i18n script re-shows fields on country change.
+
+	function collapseAddress2() {
+		$( '#billing_address_2_field, #shipping_address_2_field' ).each( function () {
+			var $field = $( this );
+			if ( $field.data( 'cfCollapsed' ) || $field.find( 'input' ).val() ) {
+				return;
+			}
+			$field.data( 'cfCollapsed', true ).addClass( 'cf-collapsed' );
+			$( '<p class="form-row form-row-wide cf-add-address2"><a href="#"></a></p>' )
+				.find( 'a' ).text( T.addAddress2 || '+ Add apartment, suite, unit, etc.' ).end()
+				.insertBefore( $field )
+				.on( 'click', 'a', function ( e ) {
+					e.preventDefault();
+					$( this ).closest( '.cf-add-address2' ).remove();
+					$field.removeClass( 'cf-collapsed' ).find( 'input' ).trigger( 'focus' );
+				} );
+		} );
+	}
+
+	/* ---------- shipping-first: billing box + keep billing in sync ---------- */
+
+	var $different = $( '#cf-different-billing' );
+	var syncing = false;
+
+	function differentBilling() {
+		return $different.length && $different.is( ':checked' );
+	}
+
+	function syncBilling() {
+		if ( ! $different.length || differentBilling() || syncing ) {
+			return;
+		}
+		syncing = true;
+		// Country first: WooCommerce rebuilds the state field when it changes.
+		var country = $( '#shipping_country' ).val();
+		if ( $( '#billing_country' ).length && $( '#billing_country' ).val() !== country ) {
+			$( '#billing_country' ).val( country ).trigger( 'change' );
+		}
+		[ 'first_name', 'last_name', 'company', 'address_1', 'address_2', 'city', 'state', 'postcode' ].forEach( function ( k ) {
+			var $b = $( '#billing_' + k );
+			var $s = $( '#shipping_' + k );
+			if ( $b.length && $s.length && $b.val() !== $s.val() ) {
+				$b.val( $s.val() );
+				if ( $b.is( 'select' ) ) {
+					$b.trigger( 'change.select2' );
+				}
+			}
+		} );
+		syncing = false;
+	}
+
+	$different.on( 'change', function () {
+		$( '.cf-billing-address' ).prop( 'hidden', ! differentBilling() );
+		syncBilling();
+		$body.trigger( 'update_checkout' );
+	} );
+	$( 'form.checkout' ).on( 'change input', '.woocommerce-shipping-fields :input', syncBilling );
+
+	/* ---------- mobile summary toggle ---------- */
+
+	$body.on( 'click', '.cf-summary-toggle', function () {
+		var $aside = $( this ).closest( '.cf-col-summary' ).toggleClass( 'is-open' );
+		var open = $aside.hasClass( 'is-open' );
+		$( this ).attr( 'aria-expanded', open ? 'true' : 'false' )
+			.find( '.cf-summary-toggle-label' ).text( open ? T.hideSummary : T.showSummary );
+	} );
+
+	/* ---------- selected shipping rate highlight ---------- */
+
+	$body.on( 'change', '.cf-rates input.shipping_method', function () {
+		$( this ).closest( '.cf-rates' ).find( '.cf-rate' ).removeClass( 'is-selected' );
+		$( this ).closest( '.cf-rate' ).addClass( 'is-selected' );
+	} );
+
+	$( function () {
+		collapseAddress2();
+		syncBilling();
+	} );
+	$body.on( 'updated_checkout country_to_state_changed', collapseAddress2 );
 } )( jQuery );
