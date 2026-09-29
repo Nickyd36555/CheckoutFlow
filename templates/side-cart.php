@@ -28,7 +28,7 @@ $cf_position = 'bottom-left' === Settings::get( 'cart_icon_position' ) ? 'is-lef
 </div>
 <?php if ( Settings::get( 'cart_floating_icon' ) ) : ?>
 	<button type="button" class="cf-open-cart cfc-fab <?php echo esc_attr( $cf_position ); ?><?php echo Settings::get( 'cart_hide_empty_icon' ) ? ' hide-empty' : ''; ?>" aria-label="<?php esc_attr_e( 'Open cart', 'checkoutflow' ); ?>">
-		<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+		<svg aria-hidden="true" width="30" height="30" viewBox="0 0 48 48" fill="currentColor"><path d="m24 19.3-2.1-2.1 3.7-3.7h-9.1v-3h9.1l-3.7-3.7L24 4.7l7.3 7.3ZM14.5 44q-1.5 0-2.55-1.05-1.05-1.05-1.05-2.55 0-1.5 1.05-2.55Q13 36.8 14.5 36.8q1.5 0 2.55 1.05 1.05 1.05 1.05 2.55 0 1.5-1.05 2.55Q16 44 14.5 44Zm20.2 0q-1.5 0-2.55-1.05-1.05-1.05-1.05-2.55 0-1.5 1.05-2.55 1.05-1.05 2.55-1.05 1.5 0 2.55 1.05 1.05 1.05 1.05 2.55 0 1.5-1.05 2.55Q36.2 44 34.7 44ZM3.1 7V4h5.8l8.5 18.2h14.4l8-14h3.35l-8.1 15.15q-.55.95-1.425 1.525t-1.925.575H16.55l-2.8 5.2H38.3v3H14.2q-1.9 0-2.875-1.5-.975-1.5-.125-3.05l3.2-5.9L7 7Z"/></svg>
 		<span class="cf-cart-count" data-count="0">0</span>
 	</button>
 <?php endif; ?>
