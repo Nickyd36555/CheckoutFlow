@@ -174,8 +174,14 @@ class Settings {
 	 */
 	private static function menu_locations() {
 		$out = array( '' => __( 'Don\'t add', 'checkoutflow' ) );
+		// Menus by name: works for theme headers and page-builder (Elementor, Divi…) menu widgets.
+		foreach ( wp_get_nav_menus() as $menu ) {
+			/* translators: %s: menu name */
+			$out[ 'menu:' . $menu->term_id ] = sprintf( __( 'Menu: %s', 'checkoutflow' ), $menu->name );
+		}
 		foreach ( get_registered_nav_menus() as $slug => $label ) {
-			$out[ $slug ] = $label;
+			/* translators: %s: theme menu location */
+			$out[ $slug ] = sprintf( __( 'Theme location: %s', 'checkoutflow' ), $label );
 		}
 		if ( function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() ) {
 			$out['__block_navigation'] = __( 'Header navigation block (block themes)', 'checkoutflow' );
@@ -421,7 +427,7 @@ class Settings {
 				'label'   => __( 'Add cart to menu', 'checkoutflow' ),
 				'options' => self::menu_locations(),
 				'default' => '',
-				'desc'    => __( 'Shows a cart icon with item count and total in your header menu. It opens the side cart.', 'checkoutflow' ),
+				'desc'    => __( 'Pick the menu used in your header. Shows a cart icon with item count and total that opens the side cart. Not listed? Use the shortcode [checkoutflow_cart_icon].', 'checkoutflow' ),
 			),
 			'cart_menu_total'           => array(
 				'type'    => 'checkbox',

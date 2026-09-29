@@ -24,6 +24,8 @@ class Side_Cart {
 		add_filter( 'woocommerce_add_to_cart_fragments', array( $this, 'fragments' ) );
 		add_shortcode( 'checkoutflow_cart_icon', array( $this, 'shortcode_icon' ) );
 		add_filter( 'wp_nav_menu_items', array( $this, 'menu_item' ), 20, 2 );
+		// Migration: headers built with FunnelKit Cart's [fk_cart_menu] keep working.
+		add_action( 'init', array( $this, 'funnelkit_shortcode' ), 20 );
 		add_filter( 'render_block_core/navigation', array( $this, 'navigation_block_item' ), 20 );
 
 		foreach ( array( 'get', 'add', 'qty', 'remove', 'coupon', 'remove_coupon' ) as $action ) {
@@ -118,12 +120,29 @@ class Side_Cart {
 			. '</a>';
 	}
 
+	public function funnelkit_shortcode() {
+		if ( ! shortcode_exists( 'fk_cart_menu' ) ) {
+			add_shortcode( 'fk_cart_menu', array( $this, 'shortcode_icon' ) );
+		}
+	}
+
 	/**
-	 * Append the cart icon to the chosen classic menu location.
+	 * Append the cart icon to the chosen menu (or theme menu location).
 	 */
 	public function menu_item( $items, $args ) {
-		$location = Settings::get( 'cart_menu_location' );
-		if ( $location && isset( $args->theme_location ) && $args->theme_location === $location ) {
+		$target = (string) Settings::get( 'cart_menu_location' );
+		if ( '' === $target || '__block_navigation' === $target ) {
+			return $items;
+		}
+		if ( 0 === strpos( $target, 'menu:' ) ) {
+			// WordPress resolves theme locations into $args->menu too, and page builders pass
+			// the menu (ID, slug or object) directly, so compare menu IDs.
+			$menu  = ! empty( $args->menu ) ? wp_get_nav_menu_object( $args->menu ) : false;
+			$match = $menu && (int) $menu->term_id === (int) substr( $target, 5 );
+		} else {
+			$match = isset( $args->theme_location ) && $args->theme_location === $target;
+		}
+		if ( $match ) {
 			$items .= '<li class="menu-item cf-menu-cart">' . $this->shortcode_icon() . '</li>';
 		}
 		return $items;

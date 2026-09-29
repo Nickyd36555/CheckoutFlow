@@ -279,3 +279,38 @@
 .cf-cart-link .cf-cart-count[data-count="0"], .cfc-fab .cf-cart-count[data-count="0"] { display: none; }
 
 html.cfc-locked, html.cfc-locked body { overflow: hidden; }
+
+/* Themes often style every <button> (background, colour, padding, uppercase…). Pin ours. */
+.cfc-fab {
+	background: #fff !important;
+	color: #353030 !important;
+	border: 0 !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	width: 58px !important;
+	height: 58px !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	border-radius: 50% !important;
+	line-height: 0 !important;
+	text-transform: none !important;
+	letter-spacing: normal !important;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, .18) !important;
+}
+.cfc-fab:hover, .cfc-fab:focus { background: #fff !important; color: #353030 !important; }
+.cfc-fab svg, .cf-cart-link svg { display: block; width: 30px; height: 30px; fill: currentColor; flex: 0 0 auto; }
+.cf-cart-link svg { width: 28px; height: 28px; }
+.cfc-fab .cf-cart-count, .cf-cart-link .cf-cart-count { font-family: inherit; letter-spacing: normal; text-transform: none; }
+.cf-cart .cfc-close, .cf-cart .cfc-qty-btn, .cf-cart .cfc-remove, .cf-cart .cfc-continue, .cf-cart .cfc-remove-coupon {
+	background: transparent !important;
+	color: inherit !important;
+	border: 0 !important;
+	box-shadow: none !important;
+	min-height: 0 !important;
+	text-transform: none !important;
+	letter-spacing: normal !important;
+}
+.cf-cart .cfc-qty-btn { padding: 0 !important; width: 30px; }
+.cf-cart .cfc-close, .cf-cart .cfc-remove { padding: 4px !important; }
+.cf-cart .cfc-continue { color: var(--cfc-muted) !important; }
+.cf-cart .cfc-remove:hover { color: #a40e26 !important; }

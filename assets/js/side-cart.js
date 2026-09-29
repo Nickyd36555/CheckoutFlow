@@ -48,7 +48,7 @@
 	}
 
 	document.addEventListener( 'click', function ( e ) {
-		var opener = e.target.closest( '.cf-open-cart' );
+		var opener = e.target.closest( '.cf-open-cart, .fkcart-mini-open' );
 		if ( opener ) {
 			e.preventDefault();
 			open();
