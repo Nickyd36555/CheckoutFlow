@@ -34,6 +34,8 @@ final class Plugin {
 		DB::maybe_upgrade();
 
 		require_once CHECKOUTFLOW_DIR . 'includes/helpers.php';
+		require_once CHECKOUTFLOW_DIR . 'includes/class-updater.php';
+		Updater::init();
 
 		if ( Settings::flag( 'checkout_enabled' ) ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout.php';

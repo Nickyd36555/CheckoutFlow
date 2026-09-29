@@ -1,0 +1,3 @@
+# Not part of the installable plugin zip.
+.github export-ignore
+.gitattributes export-ignore

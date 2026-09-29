@@ -1,0 +1,63 @@
+# Publishes a GitHub release with an installable checkoutflow.zip whenever the plugin
+# version in checkoutflow.php changes. Sites running CheckoutFlow pick it up through
+# WordPress's normal update system (includes/class-updater.php).
+name: Release
+
+on:
+  push:
+    paths:
+      - checkoutflow.php
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          header=$(grep -m1 -oP '^\s*\*\s*Version:\s*\K[0-9][0-9.]*' checkoutflow.php)
+          constant=$(grep -m1 -oP "define\( 'CHECKOUTFLOW_VERSION', '\K[0-9][0-9.]*" checkoutflow.php)
+          if [ "$header" != "$constant" ]; then
+            echo "::error::Version header ($header) and CHECKOUTFLOW_VERSION ($constant) differ"
+            exit 1
+          fi
+          echo "version=$header" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already released
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Release v${{ steps.version.outputs.version }} already exists"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Lint PHP
+        if: steps.exists.outputs.skip != 'true'
+        run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Build zip
+        if: steps.exists.outputs.skip != 'true'
+        run: git archive --format=zip --prefix=checkoutflow/ -o checkoutflow.zip HEAD
+
+      - name: Publish release
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" checkoutflow.zip \
+            --target "$GITHUB_SHA" \
+            --title "CheckoutFlow ${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --latest
