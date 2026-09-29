@@ -25,6 +25,10 @@ final class Plugin {
 	}
 
 	private function __construct() {
+		// Updates keep flowing even while WooCommerce is inactive.
+		require_once CHECKOUTFLOW_DIR . 'includes/class-updater.php';
+		Updater::init();
+
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			add_action( 'admin_notices', array( $this, 'missing_wc_notice' ) );
 			return;
@@ -34,8 +38,6 @@ final class Plugin {
 		DB::maybe_upgrade();
 
 		require_once CHECKOUTFLOW_DIR . 'includes/helpers.php';
-		require_once CHECKOUTFLOW_DIR . 'includes/class-updater.php';
-		Updater::init();
 
 		if ( Settings::flag( 'checkout_enabled' ) ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout.php';

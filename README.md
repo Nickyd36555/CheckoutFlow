@@ -28,6 +28,16 @@ The FunnelKit plugins you were running add up to about 3,500 PHP files. Checkout
 4. Go to **CheckoutFlow → Automations**. The **Abandoned cart recovery** automation is created for you but **paused**. Review its three emails, then switch it to **Active**.
 5. Optionally: **Contacts → Import customers from orders**, and import your FunnelKit contacts from CSV (FunnelKit → Contacts → Export, then import here; tick the consent box only for people who opted in).
 
+### Automatic updates
+
+CheckoutFlow updates itself from this repository's GitHub releases through WordPress's normal update system:
+
+- Updates appear under **Dashboard → Updates** and on the **Plugins** screen, and auto-updates are switched on for CheckoutFlow the first time it runs (switch them off on the Plugins screen with "Disable auto-updates").
+- WordPress checks twice a day. Use the **Check for updates** link under CheckoutFlow on the Plugins screen to check right away.
+- WordPress's own safety net applies: if an update would break the site, it is rolled back automatically.
+- Releasing: bump `Version:` and `CHECKOUTFLOW_VERSION` in `checkoutflow.php` and push. The **Release** GitHub Action builds `checkoutflow.zip` and publishes release `vX.Y.Z`.
+- On shared hosting that hits GitHub's anonymous API limit, add a read-only token to `wp-config.php`: `define( 'CHECKOUTFLOW_GITHUB_TOKEN', '...' );`
+
 ### Cron (important for email timing)
 
 Emails go out from a job that runs every minute through WP-Cron. On low-traffic sites WP-Cron only runs when someone visits, so add a real cron job and disable the built-in trigger:
