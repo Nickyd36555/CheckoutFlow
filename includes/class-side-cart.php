@@ -99,7 +99,7 @@ class Side_Cart {
 	 */
 	private function badge_values() {
 		if ( WC()->cart && ( is_cart() || is_checkout() || is_user_logged_in() ) ) {
-			return array( (int) WC()->cart->get_cart_contents_count(), wc_price( cart_total_after_discounts() ) );
+			return array( (int) WC()->cart->get_cart_contents_count(), wc_price( cart_display_total() ) );
 		}
 		return array( 0, wc_price( 0 ) );
 	}
@@ -243,7 +243,7 @@ class Side_Cart {
 		$count                                = WC()->cart->get_cart_contents_count();
 		$fragments['div.cf-cart-content']     = $this->content_html();
 		$fragments['span.cf-cart-count']      = '<span class="cf-cart-count" data-count="' . esc_attr( $count ) . '">' . esc_html( $count ) . '</span>';
-		$fragments['span.cf-cart-total']      = '<span class="cf-cart-total">' . wp_kses_post( wc_price( cart_total_after_discounts() ) ) . '</span>';
+		$fragments['span.cf-cart-total']      = '<span class="cf-cart-total">' . wp_kses_post( wc_price( cart_display_total() ) ) . '</span>';
 		return $fragments;
 	}
 

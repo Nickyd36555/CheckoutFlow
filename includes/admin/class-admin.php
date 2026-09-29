@@ -27,7 +27,7 @@ class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 
-		$posts = array( 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
+		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
@@ -52,6 +52,7 @@ class Admin {
 		add_submenu_page( 'checkoutflow', __( 'Campaigns', 'checkoutflow' ), __( 'Campaigns', 'checkoutflow' ), self::CAP, 'checkoutflow-campaigns', array( $this, 'page_campaigns' ) );
 		add_submenu_page( 'checkoutflow', __( 'Automations', 'checkoutflow' ), __( 'Automations', 'checkoutflow' ), self::CAP, 'checkoutflow-automations', array( $this, 'page_automations' ) );
 		add_submenu_page( 'checkoutflow', __( 'Contacts', 'checkoutflow' ), __( 'Contacts', 'checkoutflow' ), self::CAP, 'checkoutflow-contacts', array( $this, 'page_contacts' ) );
+		add_submenu_page( 'checkoutflow', __( 'Discounts', 'checkoutflow' ), __( 'Discounts', 'checkoutflow' ), self::CAP, 'checkoutflow-discounts', array( $this, 'page_discounts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Abandoned Carts', 'checkoutflow' ), __( 'Abandoned Carts', 'checkoutflow' ), self::CAP, 'checkoutflow-carts', array( $this, 'page_carts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Settings', 'checkoutflow' ), __( 'Settings', 'checkoutflow' ), self::CAP, 'checkoutflow-settings', array( $this, 'page_settings' ) );
 		// Hidden: email editor.
@@ -206,6 +207,80 @@ class Admin {
 
 	public function page_contacts() {
 		$this->view( 'contacts' );
+	}
+
+	public function page_discounts() {
+		$rules = \CheckoutFlow\Discounts::rules();
+		$id    = isset( $_GET['rule'] ) ? sanitize_text_field( wp_unslash( $_GET['rule'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( '' !== $id ) {
+			$rule = 'new' === $id ? \CheckoutFlow\Discounts::blank_rule() : null;
+			foreach ( $rules as $r ) {
+				if ( $r['id'] === $id ) {
+					$rule = $r;
+				}
+			}
+			if ( $rule ) {
+				$this->view( 'discount-edit', array( 'rule' => $rule, 'is_new' => 'new' === $id ) );
+				return;
+			}
+		}
+		$this->view( 'discounts', array( 'rules' => $rules ) );
+	}
+
+	public function post_save_discount() {
+		self::check( 'cf_save_discount' );
+		$raw           = isset( $_POST['rule'] ) ? (array) wp_unslash( $_POST['rule'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sanitized by sanitize_rule().
+		$raw['tiers']  = isset( $raw['tiers'] ) ? array_values( (array) $raw['tiers'] ) : array();
+		$raw['enabled'] = ! empty( $raw['enabled'] );
+		$rule          = \CheckoutFlow\Discounts::sanitize_rule( $raw );
+		$rules         = \CheckoutFlow\Discounts::rules();
+		$found         = false;
+		foreach ( $rules as $i => $r ) {
+			if ( $r['id'] === $rule['id'] ) {
+				$rule['note'] = $r['note'];
+				$rules[ $i ]  = $rule;
+				$found        = true;
+			}
+		}
+		if ( ! $found ) {
+			$rules[] = $rule;
+		}
+		\CheckoutFlow\Discounts::save( $rules );
+		self::redirect( self::url( 'discounts' ), $rule['tiers'] ? __( 'Discount saved.', 'checkoutflow' ) : '!' . __( 'Saved, but the rule has no tiers yet so it will not apply.', 'checkoutflow' ) );
+	}
+
+	public function post_discount_action() {
+		self::check( 'cf_discount_action' );
+		$id    = isset( $_POST['rule'] ) ? sanitize_text_field( wp_unslash( $_POST['rule'] ) ) : '';
+		$do    = isset( $_POST['do'] ) ? sanitize_key( $_POST['do'] ) : '';
+		$rules = \CheckoutFlow\Discounts::rules();
+		foreach ( $rules as $i => $r ) {
+			if ( $r['id'] !== $id ) {
+				continue;
+			}
+			if ( 'toggle' === $do ) {
+				$rules[ $i ]['enabled'] = empty( $r['enabled'] );
+			} elseif ( 'delete' === $do ) {
+				unset( $rules[ $i ] );
+			} elseif ( 'duplicate' === $do ) {
+				$copy            = $r;
+				$copy['id']      = wp_generate_uuid4();
+				$copy['enabled'] = false;
+				/* translators: %s: rule title */
+				$copy['title']   = sprintf( __( '%s (copy)', 'checkoutflow' ), $r['title'] );
+				array_splice( $rules, $i + 1, 0, array( $copy ) );
+			} elseif ( in_array( $do, array( 'up', 'down' ), true ) ) {
+				$j = 'up' === $do ? $i - 1 : $i + 1;
+				if ( isset( $rules[ $j ] ) ) {
+					$tmp         = $rules[ $j ];
+					$rules[ $j ] = $rules[ $i ];
+					$rules[ $i ] = $tmp;
+				}
+			}
+			break;
+		}
+		\CheckoutFlow\Discounts::save( $rules );
+		self::redirect( self::url( 'discounts' ), __( 'Discounts updated.', 'checkoutflow' ) );
 	}
 
 	public function page_carts() {

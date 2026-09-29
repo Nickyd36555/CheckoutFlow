@@ -97,3 +97,11 @@ fieldset[disabled] .button { pointer-events: none; opacity: .6; }
 .cfe-test { margin: 16px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cfe-test .description { flex-basis: 100%; margin: 0; }
 @media (max-width: 900px) { .cfe-meta { grid-template-columns: 1fr; } }
+
+/* Discounts */
+.cf-checklist { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 16px; max-height: 240px; overflow: auto; border: 1px solid #dcdcde; padding: 8px 12px; border-radius: 4px; background: #fff; max-width: 760px; }
+.cf-scope[hidden] { display: none; }
+.cf-tiers { max-width: 900px; }
+.cf-tiers td { vertical-align: middle; }
+.cf-kind label { display: inline-block; margin-bottom: 6px; }
+.cf-row-actions { display: flex; gap: 8px; align-items: center; white-space: nowrap; }

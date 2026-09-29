@@ -56,6 +56,9 @@ final class Plugin {
 		Mail\Queue::init();
 		Marketing\Contacts::init();
 		Marketing\Automations::init();
+
+		require_once CHECKOUTFLOW_DIR . 'includes/class-discounts.php';
+		Discounts::init();
 		new Recovery\Recovery( (bool) Settings::flag( 'recovery_enabled' ) );
 
 		add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) );

@@ -156,7 +156,7 @@ class Checkout {
 		// Keep the header cart icon in sync when quantities change on the checkout.
 		$count                           = WC()->cart->get_cart_contents_count();
 		$fragments['.cf-cart-link .cf-cart-count'] = '<span class="cf-cart-count" data-count="' . esc_attr( $count ) . '">' . esc_html( $count ) . '</span>';
-		$fragments['.cf-cart-link .cf-cart-total'] = '<span class="cf-cart-total">' . wp_kses_post( wc_price( cart_total_after_discounts() ) ) . '</span>';
+		$fragments['.cf-cart-link .cf-cart-total'] = '<span class="cf-cart-total">' . wp_kses_post( wc_price( cart_display_total() ) ) . '</span>';
 		return $fragments;
 	}
 

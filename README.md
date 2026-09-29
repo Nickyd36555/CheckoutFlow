@@ -7,6 +7,7 @@ A lean replacement for FunnelKit (Funnel Builder, Cart for WooCommerce, and Auto
 | **Checkout** | Sectioned checkout (Contact → Shipping Address → Shipping Method → Payment), shipping-address-first with optional different billing address, labels inside fields, rich order summary (images, quantity +/−, remove, inline coupon, trust badges, your own notes), total on the Place Order button, rename/hide/require fields, optional distraction-free header, optional "skip cart page" |
 | **Side cart** | Slide-out cart with quantity controls, coupons, free-shipping progress bar, cross-sell recommendations, AJAX add-to-cart on product pages; opened from a floating button (left or right), a header menu cart icon with count badge and total, the `[checkoutflow_cart_icon]` shortcode, or any `.cf-open-cart` element |
 | **Abandoned cart recovery** | Captures the email as it's typed at checkout, marks carts abandoned after N minutes, sends a timed email sequence with a one-click "restore cart" link, stops as soon as they order, reports recovered revenue |
+| **Discounts** | Bulk (quantity) and spend tiers across categories/products, product price rules (e.g. store-wide % off with strike-through prices), per-role tiers, schedules. Imports Addify "Product Dynamic Pricing and Discounts" rules automatically |
 | **Email marketing** | Contacts (synced from orders + checkout opt-in), campaigns with audience segments, automations (cart abandoned, order paid, order completed, win-back, welcome), unique coupon codes, open/click/revenue tracking |
 | **Email builder** | Drag-and-drop blocks (heading, text, button, image, products, cart items, order items, coupon, divider, spacer, HTML) with a live preview rendered by the same code that sends |
 | **SMTP** | Send through any SMTP provider (SES, Brevo, Mailgun, Postmark, SendGrid, Google Workspace, M365…), optionally for all WordPress/WooCommerce mail too |
@@ -74,6 +75,20 @@ define( 'CHECKOUTFLOW_SMTP_PASSWORD', 'your-password' );
 - An order placed within 7 days of clicking an email is credited to that email (revenue appears in campaign and automation stats).
 - Unsubscribed contacts never receive campaigns or automations. The unsubscribe page asks for confirmation so link-scanners can't unsubscribe people.
 - Campaigns default to **opted-in contacts only**. You can include customers without explicit consent, but make sure you have a lawful basis where you sell.
+
+## Discounts (replaces Addify Product Dynamic Pricing)
+
+**CheckoutFlow → Discounts.** Three rule types:
+
+- **Bulk discount:** add up the quantity of all matching items in the cart. The tier's discount (e.g. 10+ items → 10% off) comes off those items' total as a line in the cart and checkout.
+- **Spend discount:** same, but tiers are based on the amount spent on matching items.
+- **Product price:** changes each matching item's unit price based on that line's quantity. Tiers that start at 1 also show the new price, struck through, in the shop.
+
+Rules are checked top to bottom. The first product rule that fits a line sets its price, and the first bulk or spend rule that fits the cart adds its discount, calculated on the already-adjusted prices.
+
+**Moving from Addify:** your Addify rules are imported the first time an admin opens wp-admin after updating. Published rules come over switched on, drafts come over switched off, and free-gift rules and tiers for individual customers are not supported. While Addify is still active, CheckoutFlow's rules stay paused so nobody gets discounted twice. Deactivate Addify and they take over, calculating the same amounts: this was verified cart-by-cart against Addify. The one visible difference is that the discount line shows the rule name (e.g. "Bulk Discount") instead of "Discount". Set **Label in cart** to "Discount" to keep the old wording.
+
+**Why it's lighter:** rules are one small setting instead of a custom post type, so nothing is queried per page. Hooks are only added for rule types that are switched on, and they only run while WooCommerce calculates cart totals or renders a price. Product matching reads the product's own categories, rather than loading every product in a category.
 
 ## Merge tags
 

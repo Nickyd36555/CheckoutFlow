@@ -100,3 +100,32 @@ function cart_total_after_discounts() {
 	$total -= (float) $cart->get_discount_total();
 	return max( 0, $total );
 }
+
+/**
+ * Discount lines added as negative cart fees (e.g. bulk discounts).
+ *
+ * @return object[] Fee objects with ->name and ->amount (< 0).
+ */
+function cart_discount_fees() {
+	$out = array();
+	foreach ( WC()->cart ? WC()->cart->get_fees() : array() as $fee ) {
+		if ( (float) $fee->amount < 0 ) {
+			$out[] = $fee;
+		}
+	}
+	return $out;
+}
+
+/**
+ * What the shopper pays for the items: subtotal after coupons and discount fees
+ * (shipping, taxes and surcharges like package protection come at checkout).
+ *
+ * @return float
+ */
+function cart_display_total() {
+	$total = cart_total_after_discounts();
+	foreach ( cart_discount_fees() as $fee ) {
+		$total += (float) $fee->amount;
+	}
+	return max( 0, $total );
+}

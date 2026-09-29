@@ -34,6 +34,27 @@
 		} );
 	}
 
+	// Discount rule editor: tiers + scope.
+	var tiersBody = document.querySelector( '.cf-tiers tbody' );
+	var tierTpl = document.getElementById( 'cf-tier-template' );
+	if ( tiersBody && tierTpl ) {
+		var n = tiersBody.children.length + 100;
+		document.addEventListener( 'click', function ( e ) {
+			if ( e.target.closest( '.cf-tier-add' ) ) {
+				var tpl = document.createElement( 'template' );
+				tpl.innerHTML = tierTpl.innerHTML.replace( /__i__/g, String( n++ ) ).trim();
+				tiersBody.appendChild( tpl.content.firstElementChild );
+			} else if ( e.target.closest( '.cf-tier-remove' ) && tiersBody.children.length > 1 ) {
+				e.target.closest( 'tr' ).remove();
+			}
+		} );
+		document.querySelectorAll( 'input[name="rule[scope]"]' ).forEach( function ( r ) {
+			r.addEventListener( 'change', function () {
+				document.querySelector( '.cf-scope' ).hidden = r.value !== 'specific' || ! r.checked;
+			} );
+		} );
+	}
+
 	// Campaign audience: live count.
 	var form = document.getElementById( 'cf-campaign-form' );
 	var count = document.getElementById( 'cf-audience-count' );

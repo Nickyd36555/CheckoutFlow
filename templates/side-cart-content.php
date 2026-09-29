@@ -123,9 +123,15 @@ $cf_count = $cart->get_cart_contents_count();
 					<dd>&minus;<?php echo wc_price( $cart->get_coupon_discount_amount( $cf_code, $cart->display_cart_ex_tax ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?></dd>
 				</div>
 			<?php endforeach; ?>
+			<?php foreach ( \CheckoutFlow\cart_discount_fees() as $cf_fee ) : ?>
+				<div class="cfc-total-row cfc-discount">
+					<dt><?php echo esc_html( $cf_fee->name ); ?></dt>
+					<dd>&minus;<?php echo wc_price( abs( (float) $cf_fee->amount ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?></dd>
+				</div>
+			<?php endforeach; ?>
 			<div class="cfc-total-row cfc-subtotal">
 				<dt><?php esc_html_e( 'Subtotal', 'checkoutflow' ); ?></dt>
-				<dd><?php echo wc_price( \CheckoutFlow\cart_total_after_discounts() ); // phpcs:ignore WordPress.Security.EscapeOutput ?></dd>
+				<dd><?php echo wc_price( \CheckoutFlow\cart_display_total() ); // phpcs:ignore WordPress.Security.EscapeOutput ?></dd>
 			</div>
 		</dl>
 		<p class="cfc-note"><?php esc_html_e( 'Shipping and taxes calculated at checkout.', 'checkoutflow' ); ?></p>
