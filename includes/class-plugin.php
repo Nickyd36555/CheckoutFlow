@@ -65,6 +65,7 @@ final class Plugin {
 			require_once CHECKOUTFLOW_DIR . 'includes/admin/class-admin.php';
 			new Admin\Admin();
 			add_action( 'admin_init', array( __CLASS__, 'ensure_schedule' ) );
+			add_action( 'admin_init', array( 'CheckoutFlow\\Settings', 'import_funnelkit' ) );
 		}
 	}
 

@@ -299,7 +299,8 @@ html.cfc-locked, html.cfc-locked body { overflow: hidden; }
 }
 .cfc-fab:hover, .cfc-fab:focus { background: #fff !important; color: #353030 !important; }
 .cfc-fab svg, .cf-cart-link svg { display: block; width: 30px; height: 30px; fill: currentColor; flex: 0 0 auto; }
-.cf-cart-link svg { width: 28px; height: 28px; }
+.cf-cart-link svg { width: var(--cf-menu-icon, 28px); height: var(--cf-menu-icon, 28px); }
+.cf-cart-link .cf-cart-total { color: inherit; }
 .cfc-fab .cf-cart-count, .cf-cart-link .cf-cart-count { font-family: inherit; letter-spacing: normal; text-transform: none; }
 .cf-cart .cfc-close, .cf-cart .cfc-qty-btn, .cf-cart .cfc-remove, .cf-cart .cfc-continue, .cf-cart .cfc-remove-coupon {
 	background: transparent !important;

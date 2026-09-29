@@ -86,6 +86,43 @@ class Settings {
 		return self::$cache;
 	}
 
+	/**
+	 * One-time import of FunnelKit Cart's settings (they stay in the database after
+	 * FunnelKit is deactivated), so the header cart appears where it was without setup.
+	 */
+	public static function import_funnelkit() {
+		if ( get_option( 'checkoutflow_fk_imported' ) ) {
+			return;
+		}
+		update_option( 'checkoutflow_fk_imported', 1, false );
+
+		$fk = get_option( 'fkcart_settings' );
+		if ( ! is_array( $fk ) || ! $fk ) {
+			return;
+		}
+		$values = self::all();
+
+		$menus = array_filter( array_map( 'intval', (array) ( isset( $fk['cart_append_menu'] ) ? $fk['cart_append_menu'] : array() ) ) );
+		// A menu beats a theme location: Elementor & other builder headers don't use theme locations.
+		if ( $menus && 0 !== strpos( (string) $values['cart_menu_location'], 'menu:' ) ) {
+			$values['cart_menu_location'] = 'menu:' . reset( $menus );
+		}
+		if ( isset( $fk['display_menu_total'] ) ) {
+			$values['cart_menu_total'] = wc_string_to_bool( $fk['display_menu_total'] );
+		}
+		if ( ! empty( $fk['cart_menu_icon_size'] ) ) {
+			$values['cart_menu_icon_size'] = max( 16, min( 60, (int) $fk['cart_menu_icon_size'] ) );
+		}
+		if ( isset( $fk['cart_icon_position'] ) && in_array( $fk['cart_icon_position'], array( 'bottom-left', 'bottom-right' ), true ) ) {
+			$values['cart_icon_position'] = $fk['cart_icon_position'];
+		}
+		// Custom CSS commonly recolors the menu item: li.menu-item.fkcart-custom-menu-link { color: #979797 }.
+		if ( ! empty( $fk['custom_css'] ) && preg_match( '/fkcart-custom-menu-link[^{]*\{[^}]*?(?<![-\w])color\s*:\s*(#[0-9a-fA-F]{3,6})/', (string) $fk['custom_css'], $m ) ) {
+			$values['cart_menu_color'] = sanitize_hex_color( $m[1] );
+		}
+		self::save( $values );
+	}
+
 	public static function flush() {
 		self::$cache = null;
 	}
@@ -433,6 +470,20 @@ class Settings {
 				'type'    => 'checkbox',
 				'label'   => __( 'Show cart total next to the menu icon', 'checkoutflow' ),
 				'default' => true,
+			),
+			'cart_menu_color'           => array(
+				'type'    => 'text',
+				'label'   => __( 'Menu cart icon & total color', 'checkoutflow' ),
+				'default' => '',
+				'placeholder' => '#979797',
+				'desc'    => __( 'Hex color, e.g. #979797. Leave empty to use your menu\'s text color.', 'checkoutflow' ),
+			),
+			'cart_menu_icon_size'       => array(
+				'type'    => 'number',
+				'label'   => __( 'Menu cart icon size (px)', 'checkoutflow' ),
+				'default' => 28,
+				'min'     => 16,
+				'max'     => 60,
 			),
 			'cart_auto_open'            => array(
 				'type'    => 'checkbox',
