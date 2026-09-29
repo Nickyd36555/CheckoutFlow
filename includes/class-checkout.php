@@ -43,6 +43,7 @@ class Checkout {
 			add_filter( 'woocommerce_update_order_review_fragments', array( $this, 'review_fragments' ) );
 			add_filter( 'woocommerce_checkout_posted_data', array( $this, 'copy_shipping_to_billing' ) );
 			add_action( 'wc_ajax_cf_checkout_qty', array( $this, 'ajax_qty' ) );
+			add_filter( 'woocommerce_default_address_fields', array( $this, 'address_order' ), 20 );
 			$this->relocate_route_widget();
 		}
 	}
@@ -70,6 +71,49 @@ class Checkout {
 				}
 			}
 		}
+	}
+
+	public static function show_login_toggle() {
+		return ! is_user_logged_in() && 'no' !== get_option( 'woocommerce_enable_checkout_login_reminder' );
+	}
+
+	public function login_form_only() {
+		if ( self::show_login_toggle() ) {
+			woocommerce_login_form(
+				array(
+					'message'  => esc_html__( 'If you have shopped with us before, please enter your details below. If you are a new customer, please proceed to the Billing section.', 'woocommerce' ),
+					'redirect' => wc_get_checkout_url(),
+					'hidden'   => true,
+				)
+			);
+		}
+	}
+
+	/**
+	 * Address order used by the modern form: street, then town + postcode, then country + state.
+	 */
+	public function address_order( $fields ) {
+		$order = array(
+			'first_name' => array( 10, 'form-row-first' ),
+			'last_name'  => array( 20, 'form-row-last' ),
+			'company'    => array( 30, 'form-row-wide' ),
+			'address_1'  => array( 40, 'form-row-wide' ),
+			'address_2'  => array( 50, 'form-row-wide' ),
+			'city'       => array( 60, 'form-row-first' ),
+			'postcode'   => array( 65, 'form-row-last' ),
+			'country'    => array( 70, 'form-row-first' ),
+			'state'      => array( 80, 'form-row-last' ),
+		);
+		foreach ( $order as $key => $o ) {
+			if ( ! isset( $fields[ $key ] ) ) {
+				continue;
+			}
+			$fields[ $key ]['priority'] = $o[0];
+			$classes                    = array_diff( (array) ( isset( $fields[ $key ]['class'] ) ? $fields[ $key ]['class'] : array() ), array( 'form-row-wide', 'form-row-first', 'form-row-last' ) );
+			array_unshift( $classes, $o[1] );
+			$fields[ $key ]['class'] = array_values( $classes );
+		}
+		return $fields;
 	}
 
 	public static function is_modern() {
@@ -216,6 +260,8 @@ class Checkout {
 			'shield'  => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
 			'truck'   => '<path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
 			'lock'    => '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+			'award'   => '<circle cx="12" cy="10" r="6"/><path d="m9 10 2 2 4-4"/><path d="M8.5 15 7 22l5-3 5 3-1.5-7"/>',
+			'clipboard' => '<rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4V3h6v1"/><path d="M8 10h8M8 14h8M8 18h5"/>',
 			'box'     => '<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
 			'star'    => '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
 			'refresh' => '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
@@ -265,6 +311,13 @@ class Checkout {
 
 		if ( 'focused' === Settings::get( 'checkout_template' ) ) {
 			add_filter( 'template_include', array( $this, 'template' ), 99 );
+		}
+
+		if ( self::is_modern() ) {
+			// The "Returning customer?" link sits in the form column (see form-checkout.php);
+			// only the hidden login <form> stays above, since forms can't be nested.
+			remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_login_form', 10 );
+			add_action( 'woocommerce_before_checkout_form', array( $this, 'login_form_only' ), 10 );
 		}
 
 		$coupon = Settings::get( 'checkout_coupon' );

@@ -460,3 +460,110 @@ body.cf-checkout-modern .entry-header .entry-title,
 body.cf-checkout-modern .page-title,
 body.cf-checkout-modern .ast-archive-description { display: none; }
 body.cf-checkout-modern .entry-header:not(:has(> :not(.entry-title))) { display: none; }
+
+/* =====================================================================
+   Modern layout, v2: matches the FunnelKit checkout the store used.
+   (Later rules override the base modern rules above.)
+   ===================================================================== */
+.cf-modern .cf-layout {
+	grid-template-columns: minmax(0, 1fr) minmax(320px, 415px);
+	gap: 0 54px;
+	align-items: stretch;
+	max-width: 1000px;
+}
+.cf-modern .cf-col-main { padding: 24px 0 40px; }
+.cf-modern .cf-col-summary {
+	position: static;
+	background: #f7f7f7;
+	border: 0;
+	border-left: 1px solid #e3e3e3;
+	border-radius: 0;
+	padding: 32px 30px 40px;
+}
+.cf-modern .cf-summary-body { position: sticky; top: 24px; }
+.admin-bar .cf-modern .cf-summary-body { top: 56px; }
+.cf-modern .cf-banner img { margin-bottom: 28px; border-radius: 0; }
+.cf-modern .cf-login-toggle { margin: 0 0 16px; font-size: 13px; }
+.cf-modern .cf-login-toggle a { color: var(--cf-accent); text-decoration: none; }
+.cf-checkout-modern form.woocommerce-form-login { max-width: 1000px; margin: 0 auto 20px; }
+.cf-modern .cf-section { margin-bottom: 30px; }
+.cf-modern .cf-section-title { font-size: 17px; margin-bottom: 14px; }
+.cf-modern .cf-different-billing label { font-weight: 400 !important; }
+
+/* Floating labels: inside the field when empty, small at the top once filled. */
+body.cf-checkout-modern .cf-modern .form-row.cf-float > label {
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 14px;
+	color: #8a8f98;
+	transition: top .15s, font-size .15s, transform .15s;
+}
+body.cf-checkout-modern .cf-modern .form-row.cf-float.cf-textarea > label { top: 16px; transform: none; }
+body.cf-checkout-modern .cf-modern .form-row.cf-float.cf-filled > label,
+body.cf-checkout-modern .cf-modern .form-row.cf-float:focus-within > label { top: 7px; transform: none; font-size: 11px; }
+.cf-modern .form-row.cf-float:not(:focus-within) .input-text::placeholder { color: transparent; }
+body.cf-checkout-modern .cf-modern .form-row .input-text,
+body.cf-checkout-modern .cf-modern .form-row select { min-height: 48px; }
+.cf-modern .form-row .required { color: #8a8f98; }
+
+/* Shipping method notice (no address yet). */
+.cf-modern .cf-shipping-empty {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	border: 0;
+	background: #fdeaea;
+	color: #1f2328;
+	font-size: 13px;
+	border-radius: 4px;
+	padding: 12px 14px;
+}
+.cf-modern .cf-shipping-empty::before {
+	content: "i";
+	flex: 0 0 18px;
+	height: 18px;
+	border: 1.5px solid #d63638;
+	border-radius: 50%;
+	color: #d63638;
+	font: 700 11px/15px Georgia, serif;
+	text-align: center;
+}
+
+/* Route widget flush left. */
+.cf-modern .cf-route #RouteWidget,
+.cf-modern .cf-route route-protect-widget { display: block; text-align: left; margin-left: 0 !important; }
+.cf-modern .cf-route #RouteWidget .pw-route-protection,
+.cf-modern .cf-route #RouteWidget .pw-container { margin-left: 0 !important; margin-right: auto !important; justify-content: flex-start !important; }
+
+/* Summary: compact rows like FunnelKit. */
+.cf-modern .cf-items td { padding: 8px 0 !important; border: 0 !important; }
+.cf-modern .cf-item-name { font-size: 13px; font-weight: 400; }
+.cf-modern .cf-coupon { border-bottom: 1px solid #e3e3e3; padding: 16px 0 20px; margin-bottom: 12px; }
+.cf-modern .cf-coupon .cf-coupon-apply { background: #c9c9c9; min-width: 130px; font-size: 16px; font-weight: 500; }
+.cf-modern .cf-totals th, .cf-modern .cf-totals td { padding: 3px 0 !important; border: 0 !important; font-size: 13px !important; }
+.cf-modern .cf-totals .order-total th,
+.cf-modern .cf-totals .order-total td { border-top: 1px solid #e3e3e3 !important; padding-top: 22px !important; }
+.cf-modern .cf-totals .order-total th { font-size: 13px !important; font-weight: 400; vertical-align: middle; }
+.cf-modern .cf-totals .order-total td strong, .cf-modern .cf-totals .order-total td .amount { font-size: 20px; font-weight: 400; }
+.cf-modern .cf-badges { border-top: 0; margin-top: 18px; padding-top: 0; gap: 18px; }
+.cf-modern .cf-badge-item svg { width: 34px; height: 34px; color: #2f3b6e; }
+.cf-modern .cf-badge-item strong { font-size: 13px; }
+.cf-modern .cf-badge-item span { font-size: 12px; color: #1f2328; }
+.cf-modern .cf-summary-note { font-size: 14px; line-height: 1.6; color: #000; margin-top: 26px; }
+
+/* Place order button. */
+.cf-checkout-modern #place_order {
+	min-height: 60px;
+	border-radius: 3px;
+	font-size: 19px;
+	font-weight: 400;
+	background: var(--cf-accent);
+}
+.cf-checkout-modern .woocommerce-terms-and-conditions-wrapper { margin-bottom: 8px; }
+
+@media (max-width: 899px) {
+	.cf-modern .cf-layout { grid-template-columns: 1fr; gap: 0; }
+	.cf-modern .cf-col-summary { border-left: 0; padding: 0 16px; }
+	.cf-modern .cf-summary-body { position: static; }
+}
+body.cf-checkout-modern .cf-modern .form-row .select2-container .select2-selection--single .select2-selection__rendered { padding-left: 4px; }

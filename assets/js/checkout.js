@@ -179,9 +179,48 @@
 		$( this ).closest( '.cf-rate' ).addClass( 'is-selected' );
 	} );
 
+	/* ---------- floating labels ---------- */
+
+	function floatLabels() {
+		$( 'form.cf-modern .form-row' ).each( function () {
+			var $row = $( this );
+			var $label = $row.children( 'label' ).not( '.checkbox, .woocommerce-form__label-for-checkbox, .screen-reader-text' );
+			var $input = $row.find( '.woocommerce-input-wrapper' ).children( 'input.input-text, select, textarea' ).first();
+			if ( ! $label.length || ! $input.length || $input.is( '[type="hidden"]' ) ) {
+				return;
+			}
+			$row.addClass( 'cf-float' ).toggleClass( 'cf-textarea', $input.is( 'textarea' ) );
+			$row.toggleClass( 'cf-filled', $input.is( 'select' ) || $.trim( $input.val() || '' ) !== '' );
+		} );
+	}
+	$( document ).on( 'input change blur', 'form.cf-modern .form-row :input', function () {
+		var $row = $( this ).closest( '.form-row.cf-float' );
+		if ( $row.length ) {
+			$row.toggleClass( 'cf-filled', $( this ).is( 'select' ) || $.trim( $( this ).val() || '' ) !== '' );
+		}
+	} );
+
+	/* ---------- Route widget: left aligned like the rest of the form ---------- */
+
+	function alignRoute() {
+		document.querySelectorAll( '.cf-route route-protect-widget' ).forEach( function ( w ) {
+			if ( w.getAttribute( 'alignment' ) !== 'left' ) {
+				w.setAttribute( 'alignment', 'left' );
+			}
+		} );
+	}
+
 	$( function () {
 		collapseAddress2();
 		syncBilling();
+		floatLabels();
+		alignRoute();
+		// Browser autofill doesn't fire input events.
+		setTimeout( floatLabels, 600 );
 	} );
-	$body.on( 'updated_checkout country_to_state_changed', collapseAddress2 );
+	$body.on( 'updated_checkout country_to_state_changed', function () {
+		collapseAddress2();
+		floatLabels();
+		alignRoute();
+	} );
 } )( jQuery );

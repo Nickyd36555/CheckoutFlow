@@ -92,10 +92,18 @@ class Settings {
 	 */
 	public static function import_funnelkit() {
 		$done = (int) get_option( 'checkoutflow_fk_imported' );
+		if ( $done >= 3 ) {
+			return;
+		}
+		update_option( 'checkoutflow_fk_imported', 3, false );
+
+		// Step 3: FunnelKit checkout designs (Elementor) – banner, badges, notes, button.
+		if ( $done < 3 ) {
+			self::import_funnelkit_checkout_design();
+		}
 		if ( $done >= 2 ) {
 			return;
 		}
-		update_option( 'checkoutflow_fk_imported', 2, false );
 
 		// Step 2: FunnelKit checkouts keep the site header, so match that.
 		if ( $done < 2 && ( get_option( 'fkcart_settings' ) || get_posts( array( 'post_type' => 'wfacp_checkout', 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) ) ) ) {
@@ -132,6 +140,124 @@ class Settings {
 			$values['cart_menu_color'] = sanitize_hex_color( $m[1] );
 		}
 		self::save( $values );
+	}
+
+	/**
+	 * Read the published FunnelKit checkout page's Elementor layout and carry over what
+	 * CheckoutFlow can show: banner image, trust badges (icon + two headings), text
+	 * blocks, place-order text and primary color. Only fills settings still at default.
+	 */
+	private static function import_funnelkit_checkout_design() {
+		$ids = get_posts( array( 'post_type' => 'wfacp_checkout', 'post_status' => 'publish', 'numberposts' => 5, 'fields' => 'ids', 'orderby' => 'modified' ) );
+		$values = self::all();
+		$defaults = self::defaults();
+		$changed = false;
+
+		// Old default note under the email field isn't part of FunnelKit's design.
+		if ( $ids && 'We save your cart so you can pick up where you left off.' === $values['recovery_consent_text'] ) {
+			$values['recovery_consent_text'] = '';
+			$changed                         = true;
+		}
+
+		foreach ( $ids as $id ) {
+			$data = json_decode( (string) get_post_meta( $id, '_elementor_data', true ), true );
+			if ( ! is_array( $data ) ) {
+				continue;
+			}
+			$widgets = array();
+			$walk    = static function ( $elements ) use ( &$walk, &$widgets ) {
+				foreach ( (array) $elements as $el ) {
+					if ( isset( $el['elType'] ) && 'widget' === $el['elType'] ) {
+						$widgets[] = $el;
+					}
+					if ( ! empty( $el['elements'] ) ) {
+						$walk( $el['elements'] );
+					}
+				}
+			};
+			$walk( $data );
+			if ( ! $widgets ) {
+				continue;
+			}
+
+			$banner = '';
+			$badges = array();
+			$texts  = array();
+			$count  = count( $widgets );
+			for ( $i = 0; $i < $count; $i++ ) {
+				$w    = $widgets[ $i ];
+				$type = isset( $w['widgetType'] ) ? $w['widgetType'] : '';
+				$set  = isset( $w['settings'] ) ? $w['settings'] : array();
+
+				if ( 'image' === $type && ! empty( $set['image']['url'] ) ) {
+					$url = $set['image']['url'];
+					if ( preg_match( '/\.svg(\?|$)/i', $url ) ) {
+						// Badge: icon followed by a title heading and a text heading.
+						$h = array();
+						for ( $j = $i + 1; $j < $count && count( $h ) < 2 && isset( $widgets[ $j ]['widgetType'] ) && 'heading' === $widgets[ $j ]['widgetType']; $j++ ) {
+							$h[] = trim( wp_strip_all_tags( (string) $widgets[ $j ]['settings']['title'] ) );
+						}
+						if ( $h ) {
+							// Pick an icon from the icon file name + title first, then the description.
+							$icon = '';
+							foreach ( array( strtolower( $url . ' ' . $h[0] ), strtolower( isset( $h[1] ) ? $h[1] : '' ) ) as $hay ) {
+								foreach ( array( 'route' => 'clipboard', 'protect' => 'clipboard', 'guarant' => 'award', 'gurant' => 'award', 'secure' => 'lock', 'ship' => 'truck', 'deliver' => 'truck', 'return' => 'refresh', 'support' => 'chat' ) as $needle => $name ) {
+									if ( ! $icon && false !== strpos( $hay, $needle ) ) {
+										$icon = $name;
+									}
+								}
+							}
+							$icon = $icon ? $icon : 'check';
+							$badges[] = $h[0] . ' | ' . ( isset( $h[1] ) ? $h[1] : '' ) . ' | ' . $icon;
+							$i        = $j - 1;
+						}
+					} elseif ( '' === $banner ) {
+						$banner = esc_url_raw( $url );
+					}
+				} elseif ( 'text-editor' === $type && ! empty( $set['editor'] ) ) {
+					$texts[] = wp_kses_post( $set['editor'] );
+				}
+
+				// FunnelKit form widget settings.
+				if ( false !== strpos( $type, 'wfacp' ) || isset( $set['wfacp_payment_place_order_text'] ) ) {
+					if ( ! empty( $set['wfacp_payment_place_order_text'] ) && '' === (string) $values['checkout_button_text'] ) {
+						$values['checkout_button_text'] = sanitize_text_field( $set['wfacp_payment_place_order_text'] );
+						$changed                        = true;
+					}
+					$color = ! empty( $set['default_primary_color'] ) ? sanitize_hex_color( $set['default_primary_color'] ) : '';
+					foreach ( $set as $key => $val ) {
+						if ( ! $color && is_string( $val ) && preg_match( '/(place_order|payment_button|btn).*(bg|background)/', $key ) && sanitize_hex_color( $val ) ) {
+							$color = sanitize_hex_color( $val );
+						}
+					}
+					if ( $color && $values['checkout_accent_color'] === $defaults['checkout_accent_color'] ) {
+						$values['checkout_accent_color'] = $color;
+						$changed                         = true;
+					}
+				}
+			}
+
+			if ( $banner && '' === (string) $values['checkout_banner'] ) {
+				$values['checkout_banner'] = $banner;
+				$changed                   = true;
+			}
+			if ( $badges && $values['checkout_badges'] === $defaults['checkout_badges'] ) {
+				$values['checkout_badges'] = implode( "\n", $badges );
+				$changed                   = true;
+			}
+			if ( $texts && '' === trim( (string) $values['checkout_summary_html'] ) ) {
+				$values['checkout_summary_html'] = implode( "\n", $texts );
+				$changed                         = true;
+			}
+			if ( '' === (string) $values['checkout_button_text'] ) {
+				$values['checkout_button_text'] = 'Place Order Now'; // FunnelKit's default label.
+				$changed                        = true;
+			}
+			break;
+		}
+		if ( $changed ) {
+			self::save( $values );
+		}
 	}
 
 	public static function flush() {
@@ -622,7 +748,8 @@ class Settings {
 			'recovery_consent_text'   => array(
 				'type'    => 'text',
 				'label'   => __( 'Notice under email field', 'checkoutflow' ),
-				'default' => __( 'We save your cart so you can pick up where you left off.', 'checkoutflow' ),
+				'default' => '',
+				'placeholder' => __( 'e.g. We save your cart so you can pick up where you left off.', 'checkoutflow' ),
 				'desc'    => __( 'Leave empty to hide.', 'checkoutflow' ),
 			),
 			'recovery_retention_days' => array(

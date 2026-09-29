@@ -63,6 +63,13 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 				<div class="cf-banner"><img src="<?php echo esc_url( $cf_banner ); ?>" alt=""></div>
 			<?php endif; ?>
 
+			<?php if ( Checkout::show_login_toggle() ) : ?>
+				<p class="cf-login-toggle">
+					<?php echo esc_html( apply_filters( 'woocommerce_checkout_login_message', esc_html__( 'Returning customer?', 'woocommerce' ) ) ); ?>
+					<a href="#" class="showlogin"><?php esc_html_e( 'Click here to login', 'woocommerce' ); ?></a>
+				</p>
+			<?php endif; ?>
+
 			<?php if ( $checkout->get_checkout_fields() ) : ?>
 				<?php do_action( 'woocommerce_checkout_before_customer_details' ); ?>
 				<div id="customer_details" class="cf-customer">
