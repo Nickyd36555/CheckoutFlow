@@ -448,3 +448,15 @@ body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input { min-height: 40p
 	.cf-modern .cf-col-summary.is-open .cf-summary-body { display: block; }
 	.cf-modern .form-row-first, .cf-modern .form-row-last { flex-basis: 100%; }
 }
+
+/* Theme resets for the modern layout (e.g. Astra borders #order_review and underlines h3). */
+.cf-modern .cf-section-title { border: 0 !important; padding: 0 !important; }
+body.cf-checkout-modern .cf-modern #order_review,
+body.cf-checkout-modern .cf-modern .woocommerce-checkout-review-order { border: 0 !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
+.cf-modern .cf-route #RouteWidget .pw-route-protection .pw-container { max-width: 100%; }
+.cf-modern .cf-route #route-checkout-radio { margin: 0; }
+/* The modern form has its own section headings; hide the theme's "Checkout" page title. */
+body.cf-checkout-modern .entry-header .entry-title,
+body.cf-checkout-modern .page-title,
+body.cf-checkout-modern .ast-archive-description { display: none; }
+body.cf-checkout-modern .entry-header:not(:has(> :not(.entry-title))) { display: none; }

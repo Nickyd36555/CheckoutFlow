@@ -91,10 +91,21 @@ class Settings {
 	 * FunnelKit is deactivated), so the header cart appears where it was without setup.
 	 */
 	public static function import_funnelkit() {
-		if ( get_option( 'checkoutflow_fk_imported' ) ) {
+		$done = (int) get_option( 'checkoutflow_fk_imported' );
+		if ( $done >= 2 ) {
 			return;
 		}
-		update_option( 'checkoutflow_fk_imported', 1, false );
+		update_option( 'checkoutflow_fk_imported', 2, false );
+
+		// Step 2: FunnelKit checkouts keep the site header, so match that.
+		if ( $done < 2 && ( get_option( 'fkcart_settings' ) || get_posts( array( 'post_type' => 'wfacp_checkout', 'post_status' => 'any', 'numberposts' => 1, 'fields' => 'ids' ) ) ) ) {
+			$values                      = self::all();
+			$values['checkout_template'] = 'theme';
+			self::save( $values );
+		}
+		if ( $done >= 1 ) {
+			return;
+		}
 
 		$fk = get_option( 'fkcart_settings' );
 		if ( ! is_array( $fk ) || ! $fk ) {

@@ -43,6 +43,32 @@ class Checkout {
 			add_filter( 'woocommerce_update_order_review_fragments', array( $this, 'review_fragments' ) );
 			add_filter( 'woocommerce_checkout_posted_data', array( $this, 'copy_shipping_to_billing' ) );
 			add_action( 'wc_ajax_cf_checkout_qty', array( $this, 'ajax_qty' ) );
+			$this->relocate_route_widget();
+		}
+	}
+
+	/**
+	 * Route (package protection) prints its widget on a configurable WooCommerce hook
+	 * (default: before the order review). In the modern layout it gets its own section
+	 * above "Payment Information" instead, fired as `checkoutflow_route_widget`.
+	 */
+	private function relocate_route_widget() {
+		global $wp_filter;
+		if ( ! class_exists( 'Routeapp_Public' ) || ! method_exists( 'Routeapp_Public', 'routeapp_get_checkout_hook' ) ) {
+			return;
+		}
+		$hook = \Routeapp_Public::routeapp_get_checkout_hook();
+		if ( empty( $wp_filter[ $hook ] ) ) {
+			return;
+		}
+		foreach ( $wp_filter[ $hook ]->callbacks as $priority => $callbacks ) {
+			foreach ( $callbacks as $callback ) {
+				$fn = $callback['function'];
+				if ( is_array( $fn ) && $fn[0] instanceof \Routeapp_Public && 'checkout_route_insurance' === $fn[1] ) {
+					remove_action( $hook, $fn, $priority );
+					add_action( 'checkoutflow_route_widget', $fn );
+				}
+			}
 		}
 	}
 
@@ -127,6 +153,10 @@ class Checkout {
 		ob_start();
 		wc_cart_totals_order_total_html();
 		$fragments['.cf-summary-toggle-total'] = '<span class="cf-summary-toggle-total">' . ob_get_clean() . '</span>';
+		// Keep the header cart icon in sync when quantities change on the checkout.
+		$count                           = WC()->cart->get_cart_contents_count();
+		$fragments['.cf-cart-link .cf-cart-count'] = '<span class="cf-cart-count" data-count="' . esc_attr( $count ) . '">' . esc_html( $count ) . '</span>';
+		$fragments['.cf-cart-link .cf-cart-total'] = '<span class="cf-cart-total">' . wp_kses_post( wc_price( cart_total_after_discounts() ) ) . '</span>';
 		return $fragments;
 	}
 

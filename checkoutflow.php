@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       CheckoutFlow
  * Description:       Lightweight WooCommerce checkout optimizer, side cart, abandoned cart recovery, email marketing (campaigns, automations, drag-and-drop email builder) over SMTP.
- * Version:           1.1.2
+ * Version:           1.1.3
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * WC requires at least: 7.0
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CHECKOUTFLOW_VERSION', '1.1.2' );
+define( 'CHECKOUTFLOW_VERSION', '1.1.3' );
 define( 'CHECKOUTFLOW_FILE', __FILE__ );
 define( 'CHECKOUTFLOW_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CHECKOUTFLOW_URL', plugin_dir_url( __FILE__ ) );

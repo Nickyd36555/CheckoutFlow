@@ -102,7 +102,7 @@ $cf_coupon = Settings::get( 'checkout_coupon' );
 				<?php do_action( 'woocommerce_review_order_after_shipping' ); ?>
 			<?php endif; ?>
 
-			<?php if ( wc_tax_enabled() && ! WC()->cart->display_prices_including_tax() ) : ?>
+			<?php if ( wc_tax_enabled() && ! WC()->cart->display_prices_including_tax() && (float) WC()->cart->get_taxes_total() > 0 ) : ?>
 				<?php if ( 'itemized' === get_option( 'woocommerce_tax_total_display' ) ) : ?>
 					<?php foreach ( WC()->cart->get_tax_totals() as $code => $tax ) : // phpcs:ignore WordPress.WP.GlobalVariablesOverride ?>
 						<tr class="tax-rate tax-rate-<?php echo esc_attr( sanitize_title( $code ) ); ?>">

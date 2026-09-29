@@ -164,6 +164,13 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 				</section>
 			<?php endif; ?>
 
+			<?php if ( has_action( 'checkoutflow_route_widget' ) ) : ?>
+				<section class="cf-section cf-route">
+					<h3 class="cf-section-title"><?php esc_html_e( 'Route Package Protection', 'checkoutflow' ); ?></h3>
+					<?php do_action( 'checkoutflow_route_widget' ); ?>
+				</section>
+			<?php endif; ?>
+
 			<?php do_action( 'woocommerce_review_order_before_payment' ); ?>
 			<section class="cf-section cf-payment">
 				<h3 class="cf-section-title"><?php esc_html_e( 'Payment Information', 'checkoutflow' ); ?></h3>
