@@ -314,7 +314,7 @@ class Discounts {
 			$was_max = max( $prices['regular_price'] );
 			if ( $strike && ( $min < $was_min || $max < $was_max ) ) {
 				$was = $was_min !== $was_max ? wc_format_price_range( $was_min, $was_max ) : wc_price( $was_min );
-				return '<del aria-hidden="true">' . $was . '</del> <ins>' . $now . '</ins>' . $product->get_price_suffix();
+				return '<span class="cf-sale"><del aria-hidden="true">' . $was . '</del> <ins>' . $now . '</ins></span>' . $product->get_price_suffix();
 			}
 			return $now . $product->get_price_suffix();
 		}
@@ -324,7 +324,7 @@ class Discounts {
 		$was     = wc_get_price_to_display( $product, array( 'price' => max( (float) $regular, (float) $product->get_price() ) ) );
 		$new     = wc_get_price_to_display( $product, array( 'price' => self::adjust( $product->get_price(), $tier ) ) );
 		if ( $strike && $new < $was ) {
-			return wc_format_sale_price( $was, $new ) . $product->get_price_suffix();
+			return '<span class="cf-sale">' . wc_format_sale_price( $was, $new ) . '</span>' . $product->get_price_suffix();
 		}
 		return wc_price( $new ) . $product->get_price_suffix();
 	}

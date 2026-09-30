@@ -580,3 +580,43 @@ body.cf-checkout-modern .woocommerce-notices-wrapper:empty { display: none; }
 	.cf-modern .cf-summary-body { position: static; }
 }
 body.cf-checkout-modern .cf-modern .form-row .select2-container .select2-selection--single .select2-selection__rendered { padding-left: 4px; }
+
+/* =====================================================================
+   Legibility: darker, heavier text and field borders.
+   ===================================================================== */
+body.cf-checkout-modern .cf-modern .form-row .input-text,
+body.cf-checkout-modern .cf-modern .form-row select,
+body.cf-checkout-modern .cf-modern .form-row textarea,
+body.cf-checkout-modern .cf-modern .cf-coupon-input,
+body.cf-checkout-modern .cf-modern .form-row .select2-container .select2-selection--single {
+	border: 1.5px solid #9aa0a6;
+	color: #111;
+	font-size: 15px;
+	font-weight: 500;
+}
+body.cf-checkout-modern .cf-modern .form-row .select2-container .select2-selection--single .select2-selection__rendered { color: #111; font-size: 15px; font-weight: 500; }
+body.cf-checkout-modern .cf-modern .form-row.cf-float > label { color: #4a4f57; font-weight: 500; }
+body.cf-checkout-modern .cf-modern .form-row.cf-float.cf-filled > label,
+body.cf-checkout-modern .cf-modern .form-row.cf-float:focus-within > label { color: #3a3f46; font-weight: 600; font-size: 11.5px; }
+body.cf-checkout-modern .cf-modern .form-row .required { color: #cf222e; }
+body.cf-checkout-modern .cf-modern .form-row .input-text::placeholder { color: #6b7078; }
+.cf-modern .cf-section-title { font-size: 19px; font-weight: 700; color: #111; }
+.cf-modern .cf-different-billing label,
+.cf-modern .create-account label,
+.cf-modern .woocommerce-terms-and-conditions-wrapper label { color: #111; font-size: 14px; font-weight: 500 !important; }
+.cf-checkout-modern #payment ul.payment_methods li label { color: #111; font-weight: 600; }
+.cf-modern .cf-add-address2 a { font-weight: 600; }
+
+/* Summary. */
+.cf-modern .cf-item-name { font-size: 14px; font-weight: 600; color: #111; }
+.cf-modern .cf-totals th, .cf-modern .cf-totals td { font-size: 14px !important; color: #111; }
+.cf-modern .cf-totals th { font-weight: 500; }
+.cf-modern .cf-totals .order-total th { font-size: 15px !important; font-weight: 700; }
+.cf-modern .cf-totals .order-total td strong, .cf-modern .cf-totals .order-total td .amount { font-size: 22px; font-weight: 700; color: #111; }
+
+/* Discounted lines: old price light and struck through, new price bold. */
+.cf-modern .cf-item-total { font-size: 14px; font-weight: 700; color: #111; }
+.cf-modern .cf-item-total del { display: block; color: #8a8f98; font-weight: 400; font-size: 13px; text-decoration: line-through; }
+.cf-modern .cf-item-total ins { text-decoration: none; font-weight: 700; color: #111; }
+.cf-modern .cf-item-total .amount, .cf-modern .cf-item-total ins .amount { font-weight: 700; color: #111; }
+.cf-modern .cf-item-total del .amount { font-weight: 400; color: #8a8f98; }

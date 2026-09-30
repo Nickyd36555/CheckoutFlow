@@ -121,7 +121,12 @@
 .cfc-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .cfc-price { font-weight: 600; font-size: 14px; }
 .cfc-price del { color: var(--cfc-muted); font-weight: 400; margin-right: 4px; }
-.cfc-price ins { text-decoration: none; }
+.cfc-price ins { text-decoration: none; font-weight: 700; }
+/* Store-wide discount prices (shop, product pages): old price light and struck, new price bold. */
+.cf-sale del { opacity: .6; font-weight: 400; text-decoration: line-through; }
+.cf-sale ins { text-decoration: none; font-weight: 700; }
+.cf-sale ins .amount, .cfc-price ins .amount { font-weight: 700; }
+.cf-sale del .amount, .cfc-price del .amount { font-weight: 400; }
 
 .cfc-qty { display: inline-flex; border: 1px solid var(--cfc-border); border-radius: 6px; overflow: hidden; }
 .cfc-qty-btn {
