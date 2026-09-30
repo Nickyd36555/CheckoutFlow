@@ -129,3 +129,32 @@ function cart_display_total() {
 	}
 	return max( 0, $total );
 }
+
+/**
+ * Where "Continue shopping" goes: the setting, else the first product category
+ * in the header cart menu, else the shop page.
+ *
+ * @return string
+ */
+function continue_shopping_url() {
+	$url = (string) Settings::get( 'cart_continue_url' );
+	if ( '' !== $url ) {
+		return $url;
+	}
+	$target  = (string) Settings::get( 'cart_menu_location' );
+	$menu_id = 0;
+	if ( 0 === strpos( $target, 'menu:' ) ) {
+		$menu_id = (int) substr( $target, 5 );
+	} elseif ( '' !== $target ) {
+		$locations = get_nav_menu_locations();
+		$menu_id   = isset( $locations[ $target ] ) ? (int) $locations[ $target ] : 0;
+	}
+	if ( $menu_id ) {
+		foreach ( (array) wp_get_nav_menu_items( $menu_id ) as $item ) {
+			if ( isset( $item->object ) && 'product_cat' === $item->object && ! empty( $item->url ) ) {
+				return $item->url;
+			}
+		}
+	}
+	return wc_get_page_permalink( 'shop' );
+}

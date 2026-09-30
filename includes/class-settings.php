@@ -653,6 +653,12 @@ class Settings {
 				'label'   => __( 'Continue shopping text', 'checkoutflow' ),
 				'default' => __( 'Continue shopping', 'checkoutflow' ),
 			),
+			'cart_continue_url'         => array(
+				'type'    => 'url',
+				'label'   => __( 'Continue shopping link', 'checkoutflow' ),
+				'default' => '',
+				'desc'    => __( 'Leave empty to use the first product category in the header cart menu (e.g. Peptides), or the shop page if there is none.', 'checkoutflow' ),
+			),
 			'cart_empty_text'           => array(
 				'type'    => 'text',
 				'label'   => __( 'Empty cart text', 'checkoutflow' ),

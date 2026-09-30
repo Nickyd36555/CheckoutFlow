@@ -20,7 +20,7 @@ $cf_count = $cart->get_cart_contents_count();
 	<div class="cfc-empty">
 		<svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
 		<p><?php echo esc_html( Settings::get( 'cart_empty_text' ) ); ?></p>
-		<a class="cfc-btn" href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>"><?php echo esc_html( Settings::get( 'cart_continue_text' ) ); ?></a>
+		<a class="cfc-btn" href="<?php echo esc_url( CheckoutFlow\continue_shopping_url() ); ?>"><?php echo esc_html( Settings::get( 'cart_continue_text' ) ); ?></a>
 	</div>
 <?php else : ?>
 	<div class="cfc-body">
@@ -140,7 +140,7 @@ $cf_count = $cart->get_cart_contents_count();
 			<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
 			<?php echo esc_html( Settings::get( 'cart_checkout_text' ) ); ?>
 		</a>
-		<button type="button" class="cfc-continue" data-cf-close><?php echo esc_html( Settings::get( 'cart_continue_text' ) ); ?></button>
+		<a class="cfc-continue" href="<?php echo esc_url( CheckoutFlow\continue_shopping_url() ); ?>"><?php echo esc_html( Settings::get( 'cart_continue_text' ) ); ?></a>
 	</footer>
 <?php endif; ?>
 </div>
