@@ -44,6 +44,7 @@ class Discounts {
 		if ( self::active( 'product' ) ) {
 			add_action( 'woocommerce_before_calculate_totals', array( __CLASS__, 'apply_product_rules' ), 90 );
 			add_filter( 'woocommerce_get_price_html', array( __CLASS__, 'price_html' ), 100, 2 );
+			add_filter( 'woocommerce_cart_item_subtotal', array( __CLASS__, 'cart_item_subtotal' ), 100, 2 );
 		}
 		if ( self::active( array( 'cart_qty', 'cart_amount' ) ) ) {
 			add_action( 'woocommerce_cart_calculate_fees', array( __CLASS__, 'apply_cart_rules' ), 90 );
@@ -306,18 +307,53 @@ class Discounts {
 				},
 				$prices['price']
 			);
-			$min = min( $new );
-			$max = max( $new );
-			$now = $min !== $max ? wc_format_price_range( $min, $max ) : wc_price( $min );
+			$min     = min( $new );
+			$max     = max( $new );
+			$now     = $min !== $max ? wc_format_price_range( $min, $max ) : wc_price( $min );
+			$was_min = min( $prices['regular_price'] );
+			$was_max = max( $prices['regular_price'] );
+			if ( $strike && ( $min < $was_min || $max < $was_max ) ) {
+				$was = $was_min !== $was_max ? wc_format_price_range( $was_min, $was_max ) : wc_price( $was_min );
+				return '<del aria-hidden="true">' . $was . '</del> <ins>' . $now . '</ins>' . $product->get_price_suffix();
+			}
 			return $now . $product->get_price_suffix();
 		}
 
-		$was = wc_get_price_to_display( $product );
-		$new = wc_get_price_to_display( $product, array( 'price' => self::adjust( $product->get_price(), $tier ) ) );
+		// "Was" is the list (regular) price, so a product already on sale still shows its list price struck.
+		$regular = '' !== (string) $product->get_regular_price() ? $product->get_regular_price() : $product->get_price();
+		$was     = wc_get_price_to_display( $product, array( 'price' => max( (float) $regular, (float) $product->get_price() ) ) );
+		$new     = wc_get_price_to_display( $product, array( 'price' => self::adjust( $product->get_price(), $tier ) ) );
 		if ( $strike && $new < $was ) {
 			return wc_format_sale_price( $was, $new ) . $product->get_price_suffix();
 		}
 		return wc_price( $new ) . $product->get_price_suffix();
+	}
+
+	/**
+	 * Cart, side cart and checkout lines: list price struck through before the discounted one.
+	 *
+	 * @param string $html Line subtotal HTML.
+	 * @param array  $item Cart item.
+	 */
+	public static function cart_item_subtotal( $html, $item ) {
+		if ( empty( $item['data'] ) || ! $item['data'] instanceof \WC_Product || false !== strpos( $html, '<del' ) ) {
+			return $html;
+		}
+		$product = $item['data'];
+		$oid     = spl_object_id( $product );
+		if ( ! isset( self::$base[ $oid ] ) ) {
+			return $html;
+		}
+		$list = max( self::$base[ $oid ], (float) $product->get_regular_price( 'edit' ) );
+		if ( (float) $product->get_price() >= $list ) {
+			return $html;
+		}
+		$args = array(
+			'price' => $list,
+			'qty'   => (float) $item['quantity'],
+		);
+		$was  = WC()->cart && WC()->cart->display_prices_including_tax() ? wc_get_price_including_tax( $product, $args ) : wc_get_price_excluding_tax( $product, $args );
+		return '<del aria-hidden="true">' . wc_price( $was ) . '</del> <ins>' . $html . '</ins>';
 	}
 
 	/* ---------- cart rules ---------- */
@@ -486,7 +522,7 @@ class Discounts {
 		}
 		printf(
 			'<div class="notice notice-info"><p>%s</p></div>',
-			esc_html__( 'CheckoutFlow imported your Addify discount rules. They take over automatically once you deactivate "Product Dynamic Pricing and Discounts" (until then Addify keeps applying them, so customers are never discounted twice).', 'checkoutflow' )
+			esc_html__( 'CheckoutFlow discounts are paused while "Product Dynamic Pricing and Discounts" (Addify) is active, so customers are never discounted twice. Deactivate Addify to turn CheckoutFlow\'s discount rules on.', 'checkoutflow' )
 		);
 	}
 }
