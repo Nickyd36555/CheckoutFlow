@@ -159,6 +159,7 @@
 		design.blocks.forEach( function ( b, i ) {
 			list.appendChild( card( b, i ) );
 		} );
+		highlight();
 	}
 
 	function card( b, i ) {
@@ -277,9 +278,25 @@
 		e.preventDefault();
 		var at = dropIndex( e ).index;
 		clearDrop();
+		dropAt( at );
+	} );
+	document.addEventListener( 'dragend', function () {
+		dragFrom = null;
+	} );
+	// A click on the handle that doesn't turn into a drag must not leave the card draggable
+	// (inputs inside a draggable element can't be selected or edited properly).
+	document.addEventListener( 'mouseup', function () {
+		list.querySelectorAll( '.cfb-block[draggable]' ).forEach( function ( n ) {
+			if ( ! n.classList.contains( 'is-dragging' ) ) {
+				n.removeAttribute( 'draggable' );
+			}
+		} );
+	} );
+
+	function dropAt( at ) {
 		if ( typeof dragFrom === 'string' ) {
 			insert( dragFrom.slice( 4 ), at );
-		} else {
+		} else if ( dragFrom !== null ) {
 			var from = dragFrom;
 			if ( at > from ) {
 				at--;
@@ -289,10 +306,7 @@
 			}
 		}
 		dragFrom = null;
-	} );
-	document.addEventListener( 'dragend', function () {
-		dragFrom = null;
-	} );
+	}
 
 	/* ---------- block settings ---------- */
 
@@ -499,6 +513,153 @@
 	} );
 	tags.appendChild( el( 'p', { class: 'description', text: 'Fallback: {first_name|there}' } ) );
 	tags.appendChild( tagList );
+
+
+	/* ---------- canvas: click, drag and drop directly on the preview ---------- */
+
+	var CANVAS_CSS =
+		'[data-cfb]{cursor:pointer}' +
+		'[data-cfb]:hover>td{box-shadow:inset 0 0 0 1px #9ec2e6}' +
+		'[data-cfb].cfb-sel>td{box-shadow:inset 0 0 0 2px #2271b1}' +
+		'[data-cfb].cfb-drop-before>td{box-shadow:inset 0 4px 0 #2271b1}' +
+		'[data-cfb].cfb-drop-after>td{box-shadow:inset 0 -4px 0 #2271b1}' +
+		'body.cfb-drop-end .cfb-end{display:block}' +
+		'.cfb-end{display:none;height:4px;background:#2271b1;margin:0 auto;max-width:600px}' +
+		'.cfb-empty-drop{margin:24px auto;max-width:560px;border:2px dashed #b6c2cf;border-radius:6px;padding:40px;text-align:center;color:#6b7280;font:14px/1.4 sans-serif}';
+
+	function doc() {
+		try {
+			return frame.contentDocument;
+		} catch ( e ) {
+			return null;
+		}
+	}
+
+	function highlight() {
+		var d = doc();
+		if ( ! d ) {
+			return;
+		}
+		d.querySelectorAll( '[data-cfb]' ).forEach( function ( r ) {
+			r.classList.toggle( 'cfb-sel', parseInt( r.getAttribute( 'data-cfb' ), 10 ) === selected );
+		} );
+	}
+
+	function canvasClear( d ) {
+		d.querySelectorAll( '.cfb-drop-before, .cfb-drop-after' ).forEach( function ( n ) {
+			n.classList.remove( 'cfb-drop-before', 'cfb-drop-after' );
+		} );
+		d.body.classList.remove( 'cfb-drop-end' );
+	}
+
+	function canvasTarget( d, e ) {
+		var row = e.target && e.target.closest ? e.target.closest( '[data-cfb]' ) : null;
+		if ( ! row ) {
+			// Between or outside blocks: the nearest block by vertical position.
+			var rows = d.querySelectorAll( '[data-cfb]' );
+			for ( var k = 0; k < rows.length; k++ ) {
+				if ( e.clientY < rows[ k ].getBoundingClientRect().bottom ) {
+					row = rows[ k ];
+					break;
+				}
+			}
+		}
+		if ( ! row ) {
+			return { index: design.blocks.length, node: null, after: true };
+		}
+		var r = row.getBoundingClientRect();
+		var after = e.clientY > r.top + r.height / 2;
+		var i = parseInt( row.getAttribute( 'data-cfb' ), 10 );
+		return { index: after ? i + 1 : i, node: row, after: after };
+	}
+
+	frame.addEventListener( 'load', function () {
+		var d = doc();
+		if ( ! d || ! d.body ) {
+			return;
+		}
+		var st = d.createElement( 'style' );
+		st.textContent = CANVAS_CSS;
+		d.head.appendChild( st );
+		var end = d.createElement( 'div' );
+		end.className = 'cfb-end';
+		d.body.appendChild( end );
+		if ( ! design.blocks.length && ! locked ) {
+			var hint = d.createElement( 'div' );
+			hint.className = 'cfb-empty-drop';
+			hint.textContent = B.i18n.empty;
+			d.body.insertBefore( hint, d.body.firstChild );
+		}
+
+		d.querySelectorAll( '[data-cfb]' ).forEach( function ( row ) {
+			if ( ! locked ) {
+				row.setAttribute( 'draggable', 'true' );
+			}
+		} );
+		// Links and images would start their own native drag.
+		d.querySelectorAll( '[data-cfb] a, [data-cfb] img' ).forEach( function ( n ) {
+			n.setAttribute( 'draggable', 'false' );
+		} );
+		highlight();
+
+		d.addEventListener( 'click', function ( e ) {
+			var row = e.target.closest( '[data-cfb]' );
+			e.preventDefault(); // never follow links in the preview
+			if ( ! row ) {
+				return;
+			}
+			selected = parseInt( row.getAttribute( 'data-cfb' ), 10 );
+			render();
+			var c = list.querySelector( '.cfb-block.is-selected' );
+			if ( c && c.scrollIntoView ) {
+				c.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );
+			}
+		} );
+
+		if ( locked ) {
+			return;
+		}
+		d.addEventListener( 'dragstart', function ( e ) {
+			var row = e.target.closest ? e.target.closest( '[data-cfb]' ) : null;
+			if ( ! row ) {
+				return;
+			}
+			dragFrom = parseInt( row.getAttribute( 'data-cfb' ), 10 );
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData( 'text/plain', String( dragFrom ) );
+		} );
+		d.addEventListener( 'dragover', function ( e ) {
+			if ( dragFrom === null ) {
+				return;
+			}
+			e.preventDefault();
+			canvasClear( d );
+			var t = canvasTarget( d, e );
+			if ( t.node ) {
+				t.node.classList.add( t.after ? 'cfb-drop-after' : 'cfb-drop-before' );
+			} else {
+				d.body.classList.add( 'cfb-drop-end' );
+			}
+		} );
+		d.addEventListener( 'dragleave', function ( e ) {
+			if ( ! e.relatedTarget ) {
+				canvasClear( d );
+			}
+		} );
+		d.addEventListener( 'drop', function ( e ) {
+			if ( dragFrom === null ) {
+				return;
+			}
+			e.preventDefault();
+			var at = canvasTarget( d, e ).index;
+			canvasClear( d );
+			dropAt( at );
+		} );
+		d.addEventListener( 'dragend', function () {
+			canvasClear( d );
+			dragFrom = null;
+		} );
+	} );
 
 	/* ---------- preview ---------- */
 

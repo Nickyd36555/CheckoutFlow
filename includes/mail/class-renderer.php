@@ -230,8 +230,17 @@ class Renderer {
 		$tags   = Merge_Tags::values( array_merge( $ctx, array( 'accent' => $s['accent'] ) ) );
 
 		$body = '';
-		foreach ( $design['blocks'] as $block ) {
-			$body .= self::block( $block, $s, $tags, $ctx );
+		foreach ( $design['blocks'] as $i => $block ) {
+			$html = self::block( $block, $s, $tags, $ctx );
+			// Builder canvas: tag each block's row so the preview can be clicked, dragged and dropped on.
+			if ( ! empty( $ctx['canvas'] ) ) {
+				if ( '' === $html ) {
+					$types = self::block_types();
+					$html  = '<tr><td style="padding:8px 32px;text-align:center;color:#9ca3af;font-size:13px;"><div style="border:2px dashed #d1d5db;padding:16px;">' . esc_html( $types[ $block['type'] ]['label'] ) . '</div></td></tr>';
+				}
+				$html = preg_replace( '/^\s*<tr\b/', '<tr data-cfb="' . (int) $i . '"', $html, 1 );
+			}
+			$body .= $html;
 		}
 
 		$preheader = isset( $ctx['preheader'] ) ? Merge_Tags::apply( $ctx['preheader'], $tags, 'text' ) : '';

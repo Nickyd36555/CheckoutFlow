@@ -108,7 +108,7 @@ class Admin {
 						'chooseImage' => __( 'Choose image', 'checkoutflow' ),
 						'linkPrompt'  => __( 'Link URL (merge tags like {shop_url} work too):', 'checkoutflow' ),
 						'copied'      => __( 'Copied!', 'checkoutflow' ),
-						'empty'       => __( 'Add blocks from the palette above.', 'checkoutflow' ),
+						'empty'       => __( 'Drag blocks here from the palette, or click a block to add it.', 'checkoutflow' ),
 						'labels'      => array(
 							'text'          => __( 'Text', 'checkoutflow' ),
 							'html'          => __( 'Content', 'checkoutflow' ),
@@ -710,7 +710,7 @@ class Admin {
 		self::ajax_check();
 		$design    = Renderer::sanitize( json_decode( isset( $_POST['design'] ) ? wp_unslash( $_POST['design'] ) : '', true ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		$preheader = isset( $_POST['preheader'] ) ? sanitize_text_field( wp_unslash( $_POST['preheader'] ) ) : '';
-		wp_send_json_success( array( 'html' => Renderer::render( $design, self::preview_ctx( $design, $preheader ) ) ) );
+		wp_send_json_success( array( 'html' => Renderer::render( $design, array_merge( self::preview_ctx( $design, $preheader ), array( 'canvas' => true ) ) ) ) );
 	}
 
 	public function ajax_send_test() {
