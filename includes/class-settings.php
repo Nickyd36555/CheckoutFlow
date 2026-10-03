@@ -333,6 +333,10 @@ class Settings {
 				case 'textarea':
 					$values[ $key ] = sanitize_textarea_field( (string) $raw );
 					break;
+				case 'css':
+					// Plain CSS only: no tags, and nothing that could close the <style> element.
+					$values[ $key ] = str_replace( '</', '', wp_strip_all_tags( (string) $raw ) );
+					break;
 				default:
 					$values[ $key ] = sanitize_text_field( (string) $raw );
 			}
@@ -907,14 +911,185 @@ class Settings {
 			),
 		);
 
+		$thankyou = array(
+			'ty_enabled'        => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Use the CheckoutFlow thank-you page', 'checkoutflow' ),
+				'default' => true,
+				'desc'    => __( 'Restyles the WooCommerce "Order received" page to match the checkout. Payment-gateway boxes and tracking scripts on that page keep working.', 'checkoutflow' ),
+			),
+			'ty_heading'        => array(
+				'type'    => 'text',
+				'label'   => __( 'Heading', 'checkoutflow' ),
+				'default' => __( 'Thank you, {first_name}!', 'checkoutflow' ),
+				'desc'    => __( 'Tags: {first_name}, {order_number}, {email}, {total}.', 'checkoutflow' ),
+			),
+			'ty_subheading'     => array(
+				'type'    => 'text',
+				'label'   => __( 'Text under the heading', 'checkoutflow' ),
+				'default' => __( 'Your order #{order_number} has been received. A confirmation email is on its way to {email}.', 'checkoutflow' ),
+			),
+			'ty_show_overview'  => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Show order number, date, total and payment method', 'checkoutflow' ),
+				'default' => true,
+			),
+			'ty_show_images'    => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Show product images in the order details', 'checkoutflow' ),
+				'default' => true,
+			),
+			'ty_billing'        => array(
+				'type'    => 'select',
+				'label'   => __( 'Billing address', 'checkoutflow' ),
+				'options' => array(
+					'different' => __( 'Show only when different from shipping', 'checkoutflow' ),
+					'always'    => __( 'Always show', 'checkoutflow' ),
+					'never'     => __( 'Never show', 'checkoutflow' ),
+				),
+				'default' => 'different',
+			),
+			'ty_next_sec'       => array(
+				'type'  => 'heading',
+				'label' => __( 'What happens next', 'checkoutflow' ),
+			),
+			'ty_next_heading'   => array(
+				'type'    => 'text',
+				'label'   => __( 'Heading', 'checkoutflow' ),
+				'default' => __( 'What happens next', 'checkoutflow' ),
+			),
+			'ty_next_html'      => array(
+				'type'    => 'html',
+				'label'   => __( 'Text', 'checkoutflow' ),
+				'default' => '',
+				'rows'    => 6,
+				'desc'    => __( 'Basic HTML allowed. Leave empty to reuse the "Text under the order summary" from the Checkout tab.', 'checkoutflow' ),
+			),
+			'ty_support_html'   => array(
+				'type'    => 'html',
+				'label'   => __( 'Help / contact text', 'checkoutflow' ),
+				'default' => '',
+				'rows'    => 3,
+				'desc'    => __( 'E.g. "Questions? Email support@yourstore.com". Leave empty to hide.', 'checkoutflow' ),
+			),
+			'ty_buttons_sec'    => array(
+				'type'  => 'heading',
+				'label' => __( 'Buttons', 'checkoutflow' ),
+			),
+			'ty_button1_text'   => array(
+				'type'    => 'text',
+				'label'   => __( 'First button text', 'checkoutflow' ),
+				'default' => __( 'Track your order', 'checkoutflow' ),
+				'desc'    => __( 'Leave empty to hide.', 'checkoutflow' ),
+			),
+			'ty_button1_url'    => array(
+				'type'    => 'url',
+				'label'   => __( 'First button link', 'checkoutflow' ),
+				'default' => '',
+				'desc'    => __( 'Leave empty to use your "track-your-order" page, or the customer\'s account orders when there is none.', 'checkoutflow' ),
+			),
+			'ty_button2_text'   => array(
+				'type'    => 'text',
+				'label'   => __( 'Second button text', 'checkoutflow' ),
+				'default' => __( 'Continue shopping', 'checkoutflow' ),
+				'desc'    => __( 'Leave empty to hide.', 'checkoutflow' ),
+			),
+			'ty_button2_url'    => array(
+				'type'    => 'url',
+				'label'   => __( 'Second button link', 'checkoutflow' ),
+				'default' => '',
+				'desc'    => __( 'Leave empty to use the side cart\'s "Continue shopping" link.', 'checkoutflow' ),
+			),
+		);
+
+		$fonts = array(
+			'inherit'                                                => __( 'Same as my theme', 'checkoutflow' ),
+			'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' => __( 'System (clean sans-serif)', 'checkoutflow' ),
+			'Helvetica, Arial, sans-serif'                           => 'Helvetica / Arial',
+			'Georgia, "Times New Roman", serif'                      => 'Georgia (serif)',
+			'"Courier New", Courier, monospace'                      => 'Courier (typewriter)',
+		);
+
+		$design = array(
+			'design_intro'        => array(
+				'type'  => 'heading',
+				'label' => __( 'Look & feel', 'checkoutflow' ),
+				'desc'  => __( 'Applies to the checkout, the thank-you page and the side cart. Button colors are set on the Checkout and Side Cart tabs.', 'checkoutflow' ),
+			),
+			'design_font'         => array(
+				'type'    => 'select',
+				'label'   => __( 'Font', 'checkoutflow' ),
+				'options' => $fonts,
+				'default' => 'inherit',
+			),
+			'design_font_size'    => array(
+				'type'    => 'number',
+				'label'   => __( 'Text size (px)', 'checkoutflow' ),
+				'default' => 15,
+				'min'     => 12,
+				'max'     => 20,
+			),
+			'design_text_color'   => array(
+				'type'    => 'color',
+				'label'   => __( 'Text color', 'checkoutflow' ),
+				'default' => '#111111',
+			),
+			'design_heading_color' => array(
+				'type'    => 'color',
+				'label'   => __( 'Heading color', 'checkoutflow' ),
+				'default' => '#111111',
+			),
+			'design_label_color'  => array(
+				'type'    => 'color',
+				'label'   => __( 'Field label color', 'checkoutflow' ),
+				'default' => '#4a4f57',
+			),
+			'design_border_color' => array(
+				'type'    => 'color',
+				'label'   => __( 'Field border color', 'checkoutflow' ),
+				'default' => '#9aa0a6',
+			),
+			'design_summary_bg'   => array(
+				'type'    => 'color',
+				'label'   => __( 'Order summary background', 'checkoutflow' ),
+				'default' => '#f7f7f7',
+			),
+			'design_radius'       => array(
+				'type'    => 'number',
+				'label'   => __( 'Corner rounding (px)', 'checkoutflow' ),
+				'default' => 4,
+				'min'     => 0,
+				'max'     => 20,
+			),
+			'design_css_sec'      => array(
+				'type'  => 'heading',
+				'label' => __( 'Custom CSS', 'checkoutflow' ),
+			),
+			'design_custom_css'   => array(
+				'type'    => 'css',
+				'label'   => __( 'Custom CSS', 'checkoutflow' ),
+				'default' => '',
+				'rows'    => 10,
+				'desc'    => __( 'Loaded on the checkout, thank-you page and side cart only. Page body classes: .cf-checkout, .cf-thankyou-page; side cart: .cf-cart.', 'checkoutflow' ),
+			),
+		);
+
 		self::$schema = array(
 			'checkout' => array(
 				'label'  => __( 'Checkout', 'checkoutflow' ),
 				'fields' => $checkout,
 			),
+			'thankyou' => array(
+				'label'  => __( 'Thank You Page', 'checkoutflow' ),
+				'fields' => $thankyou,
+			),
 			'cart'     => array(
 				'label'  => __( 'Side Cart', 'checkoutflow' ),
 				'fields' => $cart,
+			),
+			'design'   => array(
+				'label'  => __( 'Design', 'checkoutflow' ),
+				'fields' => $design,
 			),
 			'recovery' => array(
 				'label'  => __( 'Cart Recovery', 'checkoutflow' ),

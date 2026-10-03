@@ -41,6 +41,7 @@ final class Plugin {
 
 		if ( Settings::flag( 'checkout_enabled' ) ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout.php';
+			require_once CHECKOUTFLOW_DIR . 'includes/class-thankyou.php';
 			new Checkout();
 		}
 		if ( Settings::flag( 'cart_enabled' ) ) {

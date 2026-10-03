@@ -59,6 +59,7 @@ class Side_Cart {
 		wp_add_inline_style(
 			'checkoutflow-cart',
 			sprintf( ':root{--cfc-accent:%s;--cfc-width:%dpx;}', Settings::get( 'cart_accent_color' ), (int) Settings::get( 'cart_width' ) )
+				. design_css() . '.cf-cart{--cfc-text:var(--cf-text);font-family:var(--cf-font)}'
 		);
 
 		list( $js, $ver ) = asset( 'js/side-cart.js' );

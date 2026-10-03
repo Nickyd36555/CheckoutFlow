@@ -158,3 +158,36 @@ function continue_shopping_url() {
 	}
 	return wc_get_page_permalink( 'shop' );
 }
+
+/**
+ * Design settings as CSS custom properties (Settings → Design), plus the store's custom
+ * CSS. Added inline to each CheckoutFlow stylesheet; custom CSS is printed only once.
+ *
+ * @return string
+ */
+function design_css() {
+	static $custom_done = false;
+	$color = static function ( $key, $fallback ) {
+		$c = sanitize_hex_color( (string) Settings::get( $key ) );
+		return $c ? $c : $fallback;
+	};
+	$font = (string) Settings::get( 'design_font' );
+	$font = preg_replace( '/[^a-zA-Z0-9 ,\-"]/', '', '' === $font ? 'inherit' : $font );
+
+	$css = ':root{'
+		. '--cf-font:' . $font . ';'
+		. '--cf-size:' . max( 12, min( 20, (int) Settings::get( 'design_font_size' ) ) ) . 'px;'
+		. '--cf-text:' . $color( 'design_text_color', '#111111' ) . ';'
+		. '--cf-heading:' . $color( 'design_heading_color', '#111111' ) . ';'
+		. '--cf-label:' . $color( 'design_label_color', '#4a4f57' ) . ';'
+		. '--cf-field-border:' . $color( 'design_border_color', '#9aa0a6' ) . ';'
+		. '--cf-summary-bg:' . $color( 'design_summary_bg', '#f7f7f7' ) . ';'
+		. '--cf-radius:' . max( 0, min( 20, (int) Settings::get( 'design_radius' ) ) ) . 'px;'
+		. '}';
+
+	if ( ! $custom_done ) {
+		$custom_done = true;
+		$css        .= "\n" . str_replace( '</', '', (string) Settings::get( 'design_custom_css' ) );
+	}
+	return $css;
+}

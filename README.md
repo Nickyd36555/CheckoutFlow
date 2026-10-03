@@ -100,9 +100,19 @@ Any tag accepts a fallback: `{first_name|there}`.
 
 Settings → Side Cart → **Add cart to menu**: pick your header menu location (on block themes, "Header navigation block"). It shows the cart icon, a red count badge and the cart total, and opens the side cart. On page builders (Elementor, Divi…) place the shortcode `[checkoutflow_cart_icon]` in the header instead (`total="no"` hides the amount).
 
+## Thank-you page & design settings
+
+**CheckoutFlow → Settings → Thank You Page** restyles WooCommerce's "Order received" page to match the checkout. It shows a heading and text (tags: `{first_name}`, `{order_number}`, `{email}`, `{total}`), order info cards, the order details with product images, the addresses, a "What happens next" box and two buttons. If you leave the first button's link empty, it uses your `track-order` page; the second button uses the side cart's "Continue shopping" link. Payment-gateway boxes (`woocommerce_thankyou_{gateway}`) and anything else hooked to `woocommerce_thankyou` still show.
+
+**Settings → Design** sets the font, text size, text, heading and label colors, field border color, order summary background and corner rounding. These apply to the checkout, the thank-you page and the side cart. The **Custom CSS** box is loaded only on those pages; HTML tags are stripped when you save.
+
+## Email builder
+
+Drag blocks from the palette onto the email preview; a blue line shows where they'll land. Drag a block in the preview to move it, or click it to edit its settings. The block list on the left supports the same drag, move and duplicate actions.
+
 ## Theme overrides
 
-Copy any file from `templates/` to `yourtheme/checkoutflow/` to override it (`checkout-focused.php`, `side-cart.php`, `side-cart-content.php`, `checkout/form-checkout.php`, `checkout/review-order.php`, `checkout/payment.php`).
+Copy any file from `templates/` to `yourtheme/checkoutflow/` to override it (`checkout-focused.php`, `side-cart.php`, `side-cart-content.php`, `checkout/form-checkout.php`, `checkout/review-order.php`, `checkout/payment.php`, `checkout/thankyou.php`).
 
 ## Developer hooks
 

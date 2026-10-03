@@ -76,7 +76,8 @@ $values = Settings::all();
 							break;
 						case 'textarea':
 						case 'html':
-							printf( '<textarea class="large-text" rows="%d" id="%s" name="%s">%s</textarea>', isset( $f['rows'] ) ? (int) $f['rows'] : 3, esc_attr( $id ), esc_attr( $name ), esc_textarea( $value ) );
+						case 'css':
+							printf( '<textarea class="large-text%s" rows="%d" id="%s" name="%s">%s</textarea>', 'css' === $f['type'] ? ' code' : '', isset( $f['rows'] ) ? (int) $f['rows'] : 3, esc_attr( $id ), esc_attr( $name ), esc_textarea( $value ) );
 							break;
 						case 'password':
 							$has = '' !== (string) $value || defined( 'CHECKOUTFLOW_SMTP_PASSWORD' );

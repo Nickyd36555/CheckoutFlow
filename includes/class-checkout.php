@@ -302,6 +302,10 @@ class Checkout {
 	 * Runs once the main query is known, so front-end hooks are only added on checkout.
 	 */
 	public function setup() {
+		if ( is_checkout() && is_wc_endpoint_url( 'order-received' ) && Thank_You::enabled() ) {
+			Thank_You::setup();
+			return;
+		}
 		if ( ! $this->is_checkout_form() ) {
 			return;
 		}
@@ -337,7 +341,7 @@ class Checkout {
 	public function assets() {
 		list( $css, $ver ) = asset( 'css/checkout.css' );
 		wp_enqueue_style( 'checkoutflow-checkout', $css, array(), $ver );
-		wp_add_inline_style( 'checkoutflow-checkout', 'body.cf-checkout{--cf-accent:' . Settings::get( 'checkout_accent_color' ) . ';}' );
+		wp_add_inline_style( 'checkoutflow-checkout', 'body.cf-checkout{--cf-accent:' . Settings::get( 'checkout_accent_color' ) . ';}' . design_css() );
 
 		list( $js, $ver ) = asset( 'js/checkout.js' );
 		wp_enqueue_script( 'checkoutflow-checkout', $js, array( 'jquery', 'wc-checkout' ), $ver, true );
