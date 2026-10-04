@@ -266,6 +266,9 @@
 	} );
 
 	var actions = el( 'div', { class: 'cfx-actions' } );
+	if ( ! locked && B.mode === 'email' && B.ai ) {
+		actions.appendChild( el( 'button', { type: 'button', class: 'button cfx-ai-btn', onclick: openAI }, [ icon( 'lightbulb' ), el( 'span', { text: T.aiWrite || 'Write with AI' } ) ] ) );
+	}
 	if ( ! locked && B.templates && B.templates.length ) {
 		actions.appendChild( el( 'button', { type: 'button', class: 'button', text: T.templates || 'Templates', onclick: openTemplates } ) );
 	}
@@ -374,6 +377,124 @@
 			}
 		} );
 		root.appendChild( modal );
+	}
+
+	/* ---------- AI writer ---------- */
+
+	var aiBrief = '';
+	function openAI() {
+		var modal = el( 'div', { class: 'cfx-modal', role: 'dialog', 'aria-modal': 'true' } );
+		var busy = false;
+		var close = function () {
+			if ( ! busy ) {
+				modal.remove();
+			}
+		};
+		var head = el( 'div', { class: 'cfx-modal-head' }, [ el( 'h2', { text: T.aiWrite || 'Write with AI' } ), el( 'button', { type: 'button', class: 'cfx-icon-btn', 'aria-label': T.close || 'Close', onclick: close }, [ icon( 'no-alt' ) ] ) ] );
+		var box = el( 'div', { class: 'cfx-modal-box cfx-ai' }, [ head ] );
+		modal.appendChild( box );
+
+		if ( ! B.ai.enabled ) {
+			box.appendChild( el( 'p', { text: T.aiNoKey || 'To use the AI writer, add your Anthropic API key in Settings → Email & SMTP.' } ) );
+			box.appendChild( el( 'p', {}, [ el( 'a', { class: 'button button-primary', href: B.ai.settingsUrl, target: '_blank', rel: 'noopener', text: T.aiOpenSettings || 'Open settings' } ) ] ) );
+		} else {
+			var brief = el( 'textarea', { class: 'cfx-ai-brief', rows: '5', placeholder: T.aiPlaceholder || 'Describe the email: the occasion, the offer, products to feature, tone… e.g. "Weekend flash sale, 15% off everything with a coupon, feature our 3 best sellers, mention bulk pricing"' } );
+			brief.value = aiBrief;
+			var ideas = el( 'div', { class: 'cfx-ai-ideas' } );
+			( T.aiIdeas || [ 'Flash sale: 15% off sitewide for 48 hours, with a coupon', 'New arrivals: feature our 3 newest products', 'Win back customers who haven\'t ordered in 60 days', 'Monthly newsletter with best sellers and a bulk pricing reminder' ] ).forEach( function ( idea ) {
+				ideas.appendChild( el( 'button', { type: 'button', class: 'cfx-ai-idea', text: idea, onclick: function () {
+					brief.value = idea;
+					brief.focus();
+				} } ) );
+			} );
+			var modeName = 'cfx-ai-mode';
+			var modes = el( 'div', { class: 'cfx-ai-modes' } );
+			[ [ 'replace', T.aiReplace || 'Write a new email (replaces current content)' ], [ 'append', T.aiAppend || 'Add a section to this email' ] ].forEach( function ( m, i ) {
+				var r = el( 'input', { type: 'radio', name: modeName, value: m[ 0 ] } );
+				r.checked = design.blocks.length ? i === 1 : i === 0;
+				modes.appendChild( el( 'label', {}, [ r, el( 'span', { text: m[ 1 ] } ) ] ) );
+			} );
+			var msg = el( 'p', { class: 'cfx-ai-msg', 'aria-live': 'polite' } );
+			var go = el( 'button', { type: 'button', class: 'button button-primary cfx-ai-go', text: T.aiGenerate || 'Generate' } );
+			go.addEventListener( 'click', function () {
+				var text = brief.value.trim();
+				if ( ! text ) {
+					brief.focus();
+					return;
+				}
+				var mode = modes.querySelector( 'input:checked' ).value;
+				aiBrief = text;
+				busy = true;
+				go.disabled = true;
+				box.classList.add( 'is-busy' );
+				msg.className = 'cfx-ai-msg';
+				msg.textContent = T.aiWorking || 'Writing your email… this usually takes 20–60 seconds.';
+				post( B.ai.action, {
+					brief: text,
+					mode: mode,
+					subject: subject ? subject.value : '',
+					design: JSON.stringify( design )
+				} ).then( function ( r ) {
+					busy = false;
+					go.disabled = false;
+					box.classList.remove( 'is-busy' );
+					if ( ! r || ! r.success ) {
+						msg.className = 'cfx-ai-msg is-error';
+						msg.textContent = ( r && r.data && r.data.message ) || T.aiFailed || 'Something went wrong. Please try again.';
+						return;
+					}
+					applyAI( r.data, mode );
+					aiBrief = '';
+					close();
+				} ).catch( function () {
+					busy = false;
+					go.disabled = false;
+					box.classList.remove( 'is-busy' );
+					msg.className = 'cfx-ai-msg is-error';
+					msg.textContent = T.aiFailed || 'Something went wrong. Please try again.';
+				} );
+			} );
+			brief.addEventListener( 'keydown', function ( e ) {
+				if ( e.key === 'Enter' && ( e.metaKey || e.ctrlKey ) ) {
+					go.click();
+				}
+			} );
+			box.appendChild( brief );
+			box.appendChild( ideas );
+			box.appendChild( modes );
+			box.appendChild( el( 'div', { class: 'cfx-ai-foot' }, [ msg, go ] ) );
+			box.appendChild( el( 'p', { class: 'cfx-tip', text: T.aiNote || 'AI writes a draft; review the copy, links and products before sending. Undo restores your previous email.' } ) );
+			setTimeout( function () {
+				brief.focus();
+			}, 0 );
+		}
+		modal.addEventListener( 'click', function ( e ) {
+			if ( e.target === modal ) {
+				close();
+			}
+		} );
+		root.appendChild( modal );
+	}
+
+	function applyAI( out, mode ) {
+		var blocks = Array.isArray( out.blocks ) ? out.blocks : [];
+		if ( mode === 'append' ) {
+			if ( blocks.length ) {
+				insertBlocks( blocks );
+			}
+		} else {
+			design.blocks = clone( blocks );
+			sel = null;
+			changed( { record: true, preview: true } );
+			renderSide();
+		}
+		if ( subject && out.subject && ( mode === 'replace' || ! subject.value ) ) {
+			subject.value = out.subject;
+		}
+		if ( preheader && out.preheader && ( mode === 'replace' || ! preheader.value ) ) {
+			preheader.value = out.preheader;
+		}
+		changed( { record: false, preview: true } );
 	}
 
 	/* ---------- side panel ---------- */

@@ -981,6 +981,23 @@ class Settings {
 				'default' => '{site_name}<br>{store_address}',
 				'desc'    => __( 'Anti-spam laws (CAN-SPAM, GDPR) require your physical address. An unsubscribe link is always added automatically.', 'checkoutflow' ),
 			),
+			'ai_heading'      => array(
+				'type'  => 'heading',
+				'label' => __( 'AI email writer', 'checkoutflow' ),
+				'desc'  => __( 'Adds a "Write with AI" button to the email editor. Uses Claude by Anthropic with your own API key (console.anthropic.com); usage is billed to your Anthropic account.', 'checkoutflow' ),
+			),
+			'ai_api_key'      => array(
+				'type'    => 'password',
+				'label'   => __( 'Anthropic API key', 'checkoutflow' ),
+				'default' => '',
+				'desc'    => __( 'Stored encrypted. Or define CHECKOUTFLOW_ANTHROPIC_API_KEY in wp-config.php to keep it out of the database.', 'checkoutflow' ),
+			),
+			'ai_brand'        => array(
+				'type'    => 'textarea',
+				'label'   => __( 'Brand voice & rules', 'checkoutflow' ),
+				'default' => '',
+				'desc'    => __( 'Given to the AI with every request, e.g. tone, words to avoid, required disclaimers ("All products are for research use only").', 'checkoutflow' ),
+			),
 		);
 
 		$marketing = array(

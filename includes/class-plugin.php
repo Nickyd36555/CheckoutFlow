@@ -72,6 +72,7 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/admin/class-admin.php';
+			require_once CHECKOUTFLOW_DIR . 'includes/mail/class-ai.php';
 			new Admin\Admin();
 			add_action( 'admin_init', array( __CLASS__, 'ensure_schedule' ) );
 			add_action( 'admin_init', array( 'CheckoutFlow\\Settings', 'import_funnelkit' ) );

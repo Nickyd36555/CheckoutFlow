@@ -131,6 +131,16 @@ Emails and the thank-you page are designed in the same full-screen editor:
 - Drag blocks onto the preview, drag a selected block by its handle to move it (also into or out of columns), and click a heading or text block to type in place. Every block has background and spacing settings.
 - Undo/redo (Ctrl+Z / Ctrl+Shift+Z), Delete to remove the selected block, Ctrl+S to save, desktop/mobile preview, send test. Changes autosave a few seconds after you stop editing.
 
+## AI email writer
+
+The email editor has a **Write with AI** button. Describe the email ("weekend flash sale, 15% off with a coupon, feature our best sellers") and it writes the subject line, preview text and a full layout of normal, editable blocks. You can also add a section to an existing email. Undo restores what you had.
+
+- Powered by Claude (Anthropic). Add your own API key in **Settings → Email & SMTP → AI email writer** (create one at console.anthropic.com); usage is billed to your Anthropic account. The key is stored encrypted, or define `CHECKOUTFLOW_ANTHROPIC_API_KEY` in `wp-config.php`.
+- **Brand voice & rules** (same settings section) is sent with every request, e.g. tone and required disclaimers.
+- The AI sees your store name, up to 150 published products (ID, name, price) so it can feature real items, and the email you're editing. No customer or order data is sent.
+- Output goes through the same sanitizer as hand-built emails. Requests are allowed a server-side model fallback if the main model declines on policy grounds.
+- Always review the draft (copy, links, products, discounts) before sending.
+
 ## Theme overrides
 
 Copy any file from `templates/` to `yourtheme/checkoutflow/` to override it (`checkout-focused.php`, `side-cart.php`, `side-cart-content.php`, `checkout/form-checkout.php`, `checkout/review-order.php`, `checkout/payment.php`, `checkout/thankyou.php`).

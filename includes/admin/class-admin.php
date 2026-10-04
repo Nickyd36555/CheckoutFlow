@@ -15,6 +15,7 @@ use CheckoutFlow\Mail\Renderer;
 use CheckoutFlow\Mail\Merge_Tags;
 use CheckoutFlow\Mail\Coupons;
 use CheckoutFlow\Mail\Templates;
+use CheckoutFlow\Mail\AI;
 use CheckoutFlow\Marketing\Contacts;
 use CheckoutFlow\Marketing\Campaigns;
 use CheckoutFlow\Marketing\Automations;
@@ -33,7 +34,7 @@ class Admin {
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
-		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave' ) as $action ) {
+		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave', 'ai_generate' ) as $action ) {
 			add_action( 'wp_ajax_cf_' . $action, array( $this, 'ajax_' . $action ) );
 		}
 		add_filter( 'plugin_action_links_' . plugin_basename( CHECKOUTFLOW_FILE ), array( $this, 'action_links' ) );
@@ -248,6 +249,11 @@ class Admin {
 			'testTo'        => wp_get_current_user()->user_email,
 			'previewAction' => 'cf_preview',
 			'saveAction'    => 'cf_autosave_email',
+			'ai'            => array(
+				'action'      => 'cf_ai_generate',
+				'enabled'     => AI::enabled(),
+				'settingsUrl' => self::url( 'settings', array( 'tab' => 'email' ) ),
+			),
 			'saveData'      => array( 'type' => $target['type'], 'id' => $target['id'], 'step' => $target['step'] ),
 			'types'         => self::editor_types( Renderer::block_types() ),
 			'groups'        => array( 'general' => __( 'General', 'checkoutflow' ), 'woo' => __( 'WooCommerce', 'checkoutflow' ) ),
@@ -619,6 +625,24 @@ class Admin {
 		}
 		self::store_email( $target, $_POST ); // phpcs:ignore WordPress.Security.NonceVerification
 		wp_send_json_success();
+	}
+
+	public function ajax_ai_generate() {
+		self::ajax_check();
+		// phpcs:disable WordPress.Security.NonceVerification -- checked in ajax_check()
+		$brief = isset( $_POST['brief'] ) ? sanitize_textarea_field( wp_unslash( $_POST['brief'] ) ) : '';
+		$mode  = isset( $_POST['mode'] ) && 'append' === $_POST['mode'] ? 'append' : 'replace';
+		$cur   = Renderer::sanitize( json_decode( isset( $_POST['design'] ) ? wp_unslash( $_POST['design'] ) : '', true ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$subj  = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
+		// phpcs:enable
+		if ( '' === trim( $brief ) ) {
+			wp_send_json_error( array( 'message' => __( 'Describe the email you want first.', 'checkoutflow' ) ), 400 );
+		}
+		$out = AI::generate( $brief, array( 'subject' => $subj, 'blocks' => $cur['blocks'] ), $mode );
+		if ( is_wp_error( $out ) ) {
+			wp_send_json_error( array( 'message' => $out->get_error_message() ), 400 );
+		}
+		wp_send_json_success( $out );
 	}
 
 	public function ajax_ty_autosave() {
