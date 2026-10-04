@@ -122,4 +122,12 @@ $values = Settings::all();
 		<input type="email" name="to" class="regular-text" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>" required>
 		<?php submit_button( __( 'Send test', 'checkoutflow' ), 'secondary', 'submit', false ); ?>
 	</form>
+
+	<h2><?php esc_html_e( 'Test AI connection', 'checkoutflow' ); ?></h2>
+	<p class="description"><?php esc_html_e( 'Sends a tiny request to Anthropic with your saved key and shows how long the reply took.', 'checkoutflow' ); ?></p>
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<input type="hidden" name="action" value="cf_test_ai">
+		<?php wp_nonce_field( 'cf_test_ai' ); ?>
+		<?php submit_button( __( 'Test AI connection', 'checkoutflow' ), 'secondary', 'submit', false ); ?>
+	</form>
 <?php endif; ?>

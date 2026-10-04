@@ -30,7 +30,7 @@ class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 
-		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'reco_rebuild', 'reco_add_rule', 'save_fields', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
+		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'test_ai', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'reco_rebuild', 'reco_add_rule', 'save_fields', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
@@ -658,6 +658,19 @@ class Admin {
 		}
 		$msg  = $ok ? $sent : '!' . sprintf( __( 'Sending failed: %s', 'checkoutflow' ), SMTP::last_error() ? SMTP::last_error() : __( 'unknown error', 'checkoutflow' ) );
 		self::redirect( self::url( 'settings', array( 'tab' => 'email' ) ), $msg );
+	}
+
+	public function post_test_ai() {
+		self::check( 'cf_test_ai' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Only administrators can change email delivery settings.', 'checkoutflow' ), 403 );
+		}
+		$r = AI::ping();
+		if ( is_wp_error( $r ) ) {
+			self::redirect( self::url( 'settings', array( 'tab' => 'email' ) ), '!' . $r->get_error_message() );
+		}
+		/* translators: 1: model, 2: seconds */
+		self::redirect( self::url( 'settings', array( 'tab' => 'email' ) ), sprintf( __( 'AI connection works: %1$s answered in %2$s seconds.', 'checkoutflow' ), $r['model'], $r['seconds'] ) );
 	}
 
 	public function post_save_email() {

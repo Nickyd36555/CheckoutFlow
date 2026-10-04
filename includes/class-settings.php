@@ -953,6 +953,15 @@ class Settings {
 				'default' => '',
 				'desc'    => __( 'Stored encrypted. Or define CHECKOUTFLOW_ANTHROPIC_API_KEY in wp-config.php to keep it out of the database.', 'checkoutflow' ),
 			),
+			'ai_model'        => array(
+				'type'    => 'select',
+				'label'   => __( 'AI model', 'checkoutflow' ),
+				'options' => array(
+					'claude-opus-5-5'   => __( 'Claude Opus 5.5 (best writing)', 'checkoutflow' ),
+					'claude-sonnet-5-5' => __( 'Claude Sonnet 5.5 (faster, lower cost)', 'checkoutflow' ),
+				),
+				'default' => 'claude-opus-5-5',
+			),
 			'ai_brand'        => array(
 				'type'    => 'textarea',
 				'label'   => __( 'Brand voice & rules', 'checkoutflow' ),

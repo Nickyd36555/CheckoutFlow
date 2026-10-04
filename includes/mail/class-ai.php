@@ -249,7 +249,7 @@ class AI {
 		}
 
 		$body = array(
-			'model'         => self::MODEL,
+			'model'         => self::model(),
 			'max_tokens'    => 16000,
 			'system'        => self::system_prompt(),
 			'messages'      => array( array( 'role' => 'user', 'content' => $user ) ),
@@ -262,30 +262,11 @@ class AI {
 		);
 
 		if ( function_exists( 'set_time_limit' ) ) {
-			@set_time_limit( 200 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			@set_time_limit( 330 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 		}
-		$res = wp_remote_post(
-			apply_filters( 'checkoutflow_ai_endpoint', self::ENDPOINT ),
-			array(
-				'timeout' => 180,
-				'headers' => array(
-					'content-type'      => 'application/json',
-					'x-api-key'         => $key,
-					'anthropic-version' => '2023-06-01',
-					'anthropic-beta'    => 'server-side-fallback-2026-07-01',
-				),
-				'body'    => wp_json_encode( $body ),
-			)
-		);
-		if ( is_wp_error( $res ) ) {
-			/* translators: %s: error message */
-			return new \WP_Error( 'cf_ai_http', sprintf( __( 'Could not reach the AI service: %s', 'checkoutflow' ), $res->get_error_message() ) );
-		}
-
-		$code = (int) wp_remote_retrieve_response_code( $res );
-		$data = json_decode( wp_remote_retrieve_body( $res ), true );
-		if ( 200 !== $code || ! is_array( $data ) ) {
-			return new \WP_Error( 'cf_ai_api', self::api_error( $code, $data ) );
+		$data = self::request( $body, 300 );
+		if ( is_wp_error( $data ) ) {
+			return $data;
 		}
 
 		$stop = isset( $data['stop_reason'] ) ? $data['stop_reason'] : '';
@@ -345,6 +326,126 @@ class AI {
 			'preheader' => sanitize_text_field( isset( $out['preheader'] ) ? (string) $out['preheader'] : '' ),
 			'blocks'    => $design['blocks'],
 		);
+	}
+
+	public static function model() {
+		$m = (string) Settings::get( 'ai_model' );
+		return isset( self::models()[ $m ] ) ? $m : self::MODEL;
+	}
+
+	public static function models() {
+		return array(
+			'claude-opus-5-5'   => __( 'Claude Opus 5.5 (best writing)', 'checkoutflow' ),
+			'claude-sonnet-5-5' => __( 'Claude Sonnet 5.5 (faster)', 'checkoutflow' ),
+		);
+	}
+
+	/**
+	 * Send a Messages API request as a stream (data starts flowing at once, so slow
+	 * drafts don't look like a dead connection) and assemble the final message.
+	 *
+	 * @param array $body    Request body (without "stream").
+	 * @param int   $timeout Seconds.
+	 * @return array|\WP_Error { stop_reason, content: [ { type: text, text } ], model }
+	 */
+	private static function request( $body, $timeout ) {
+		$body['stream'] = true;
+		$headers        = array(
+			'content-type'      => 'application/json',
+			'accept'            => 'text/event-stream',
+			'x-api-key'         => self::api_key(),
+			'anthropic-version' => '2023-06-01',
+		);
+		if ( isset( $body['fallbacks'] ) ) {
+			$headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+		}
+		$res = wp_remote_post(
+			apply_filters( 'checkoutflow_ai_endpoint', self::ENDPOINT ),
+			array(
+				'timeout' => $timeout,
+				'headers' => $headers,
+				'body'    => wp_json_encode( $body ),
+			)
+		);
+		if ( is_wp_error( $res ) ) {
+			$msg = $res->get_error_message();
+			if ( false !== stripos( $msg, 'timed out' ) && false !== stripos( $msg, '0 bytes' ) ) {
+				/* translators: %d: seconds */
+				$msg = sprintf( __( 'No reply from Anthropic within %d seconds. Your server may be blocking or slowing connections to api.anthropic.com; use "Test AI connection" in Settings → Email & SMTP to check.', 'checkoutflow' ), $timeout );
+			}
+			/* translators: %s: error message */
+			return new \WP_Error( 'cf_ai_http', sprintf( __( 'Could not reach the AI service: %s', 'checkoutflow' ), $msg ) );
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $res );
+		$raw  = (string) wp_remote_retrieve_body( $res );
+		if ( 200 !== $code ) {
+			$data = json_decode( $raw, true );
+			// Older API versions or other models may not accept the fallback option: retry without it once.
+			if ( 400 === $code && isset( $body['fallbacks'] ) && false !== stripos( isset( $data['error']['message'] ) ? $data['error']['message'] : '', 'fallback' ) ) {
+				unset( $body['fallbacks'], $body['stream'] );
+				return self::request( $body, $timeout );
+			}
+			return new \WP_Error( 'cf_ai_api', self::api_error( $code, $data ) );
+		}
+
+		// Server-sent events: collect text deltas, the stop reason, and any error event.
+		$msg  = array( 'stop_reason' => '', 'content' => array(), 'model' => '' );
+		$text = '';
+		foreach ( preg_split( '/\r?\n/', $raw ) as $line ) {
+			if ( 0 !== strpos( $line, 'data:' ) ) {
+				continue;
+			}
+			$ev = json_decode( trim( substr( $line, 5 ) ), true );
+			if ( ! is_array( $ev ) || ! isset( $ev['type'] ) ) {
+				continue;
+			}
+			switch ( $ev['type'] ) {
+				case 'message_start':
+					$msg['model'] = isset( $ev['message']['model'] ) ? $ev['message']['model'] : '';
+					break;
+				case 'content_block_delta':
+					if ( isset( $ev['delta']['type'], $ev['delta']['text'] ) && 'text_delta' === $ev['delta']['type'] ) {
+						$text .= $ev['delta']['text'];
+					}
+					break;
+				case 'message_delta':
+					if ( ! empty( $ev['delta']['stop_reason'] ) ) {
+						$msg['stop_reason'] = $ev['delta']['stop_reason'];
+					}
+					break;
+				case 'error':
+					$etype = isset( $ev['error']['type'] ) ? $ev['error']['type'] : '';
+					return new \WP_Error( 'cf_ai_api', self::api_error( 'overloaded_error' === $etype ? 529 : 500, $ev ) );
+			}
+		}
+		$msg['content'][] = array( 'type' => 'text', 'text' => $text );
+		return $msg;
+	}
+
+	/**
+	 * Small round trip for the settings page: is the key valid and the API reachable?
+	 *
+	 * @return array|\WP_Error { seconds, model }
+	 */
+	public static function ping() {
+		if ( ! self::enabled() ) {
+			return new \WP_Error( 'cf_ai_key', __( 'Add your Anthropic API key first.', 'checkoutflow' ) );
+		}
+		$start = microtime( true );
+		$res   = self::request(
+			array(
+				'model'         => self::model(),
+				'max_tokens'    => 64,
+				'messages'      => array( array( 'role' => 'user', 'content' => 'Reply with the single word OK.' ) ),
+				'output_config' => array( 'effort' => 'low' ),
+			),
+			60
+		);
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+		return array( 'seconds' => round( microtime( true ) - $start, 1 ), 'model' => $res['model'] );
 	}
 
 	private static function api_error( $code, $data ) {
