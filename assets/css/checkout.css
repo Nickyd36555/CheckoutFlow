@@ -698,3 +698,11 @@ body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input:not(:placeholder-
 .cf-modern .cf-totals .cf-money,
 .cf-modern .cf-before-payment .cf-money,
 .cf-modern .cf-before-payment .woocommerce-Price-amount { color: #1a7f37; font-weight: 700; }
+
+/* Store credit row in the summary: the label's amount is a WooCommerce price span. */
+.cf-modern .cf-star-row .cf-star { color: #f5b301 !important; }
+.cf-modern .cf-star-row .cf-money,
+.cf-modern .cf-star-row label .woocommerce-Price-amount,
+.cf-modern .cf-star-row label .woocommerce-Price-amount *,
+.cf-modern .cf-star-row th .woocommerce-Price-amount,
+.cf-modern .cf-star-row th .woocommerce-Price-amount * { color: #1a7f37 !important; font-weight: 700; }

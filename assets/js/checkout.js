@@ -270,8 +270,9 @@
 	function decorateAddons() {
 		// The add-on box under "Payment Information", plus any summary row with stars (store credit).
 		var boxes = Array.prototype.slice.call( document.querySelectorAll( '.cf-before-payment' ) );
-		document.querySelectorAll( '.cf-totals tr, .cf-totals .cf-row' ).forEach( function ( row ) {
-			if ( /[★☆]/.test( row.textContent ) ) {
+		document.querySelectorAll( '.cf-totals tr, .cf-totals .cf-row, #order_review tr, .woocommerce-checkout-review-order-table tr' ).forEach( function ( row ) {
+			if ( /[★☆]/.test( row.textContent ) && boxes.indexOf( row ) < 0 ) {
+				row.classList.add( 'cf-star-row' );
 				boxes.push( row );
 			}
 		} );
