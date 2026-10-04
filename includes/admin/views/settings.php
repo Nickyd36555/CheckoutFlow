@@ -50,6 +50,9 @@ $values = Settings::all();
 				<td>
 					<?php
 					switch ( $f['type'] ) {
+						case 'link':
+							printf( '<a class="button button-primary" href="%s">%s</a>', esc_url( $f['url'] ), esc_html( $f['text'] ) );
+							break;
 						case 'checkbox':
 							printf( '<label><input type="checkbox" id="%s" name="%s" value="1" %s> %s</label>', esc_attr( $id ), esc_attr( $name ), checked( (bool) $value, true, false ), esc_html__( 'Enabled', 'checkoutflow' ) );
 							break;

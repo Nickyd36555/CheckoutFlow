@@ -22,13 +22,18 @@
 	var ICONS = {
 		heading: 'heading', text: 'editor-paragraph', button: 'button', image: 'format-image',
 		products: 'products', cart_items: 'cart', order_items: 'list-view', coupon: 'tickets-alt',
-		divider: 'minus', spacer: 'image-flip-vertical', html: 'editor-code'
+		divider: 'minus', spacer: 'image-flip-vertical', html: 'editor-code',
+		overview: 'grid-view', items: 'list-view', payment: 'money-alt', customer: 'id-alt', support: 'phone'
 	};
 
 	function icon( type ) {
 		return el( 'span', { class: 'cfb-icon dashicons dashicons-' + ( ICONS[ type ] || 'marker' ), 'aria-hidden': 'true' } );
 	}
 	var DYNAMIC = [ 'cart_items', 'order_items' ];
+
+	function isDynamic( type ) {
+		return DYNAMIC.indexOf( type ) !== -1 || !! ( B.types[ type ] && B.types[ type ].dynamic );
+	}
 
 	/* ---------- helpers ---------- */
 
@@ -411,12 +416,27 @@
 
 	function editor( b ) {
 		var box = el( 'div', { class: 'cfb-body' } );
-		if ( DYNAMIC.indexOf( b.type ) !== -1 ) {
+		if ( isDynamic( b.type ) ) {
 			box.appendChild( el( 'p', { class: 'description', text: B.i18n.dynamic } ) );
 		}
 		Object.keys( B.types[ b.type ].props ).forEach( function ( key ) {
 			var v = b[ key ];
 			var input;
+			var def = B.types[ b.type ].props[ key ];
+			var opts = B.types[ b.type ].options && B.types[ b.type ].options[ key ];
+			if ( opts ) {
+				input = el( 'select', {}, Object.keys( opts ).map( function ( o ) {
+					return el( 'option', { value: o, text: opts[ o ], selected: v === o } );
+				} ) );
+				box.appendChild( field( L[ key ] || key, bind( input, b, key ) ) );
+				return;
+			}
+			if ( typeof def === 'boolean' ) {
+				input = el( 'input', { type: 'checkbox' } );
+				input.checked = !! v;
+				box.appendChild( el( 'label', { class: 'cfb-field cfb-check' }, [ bind( input, b, key ), el( 'span', { text: L[ key ] || key } ) ] ) );
+				return;
+			}
 			switch ( key ) {
 				case 'html':
 					if ( b.type === 'text' ) {
@@ -465,27 +485,37 @@
 
 	/* ---------- global design ---------- */
 
-	[ 'bg', 'content_bg', 'accent', 'text_color' ].forEach( function ( k ) {
-		var i = el( 'input', { type: 'color', value: design.settings[ k ] || '#ffffff' } );
-		global.appendChild( field( L[ k ], bind( i, design.settings, k ) ) );
-	} );
-	var font = el( 'select', {}, [
+	var FONTS = B.fonts || [
 		'Helvetica, Arial, sans-serif',
 		'Georgia, "Times New Roman", serif',
 		'"Trebuchet MS", Tahoma, sans-serif',
 		'Verdana, Geneva, sans-serif',
 		'"Courier New", monospace'
-	].map( function ( f ) {
-		return el( 'option', { value: f, text: f.split( ',' )[ 0 ].replace( /"/g, '' ), selected: design.settings.font === f } );
-	} ) );
-	global.appendChild( field( L.font, bind( font, design.settings, 'font' ) ) );
-	var logo = el( 'input', { type: 'text', value: design.settings.logo || '' } );
-	var logoField = field( L.logo, bind( logo, design.settings, 'logo' ) );
-	var lb = mediaButton( logo );
-	if ( lb ) {
-		logoField.appendChild( lb );
-	}
-	global.appendChild( logoField );
+	];
+	var GLOBALS = B.globals || [ [ 'bg', 'color' ], [ 'content_bg', 'color' ], [ 'accent', 'color' ], [ 'text_color', 'color' ], [ 'font', 'font' ], [ 'logo', 'image' ] ];
+	GLOBALS.forEach( function ( g ) {
+		var k = g[ 0 ];
+		var input;
+		if ( g[ 1 ] === 'color' ) {
+			input = el( 'input', { type: 'color', value: design.settings[ k ] || '#ffffff' } );
+		} else if ( g[ 1 ] === 'font' ) {
+			input = el( 'select', {}, FONTS.map( function ( f ) {
+				return el( 'option', { value: f, text: f.split( ',' )[ 0 ].replace( /"/g, '' ), selected: design.settings.font === f } );
+			} ) );
+		} else if ( g[ 1 ] === 'number' ) {
+			input = el( 'input', { type: 'number', value: design.settings[ k ] } );
+		} else {
+			input = el( 'input', { type: 'text', value: design.settings[ k ] || '' } );
+		}
+		var f = field( L[ k ] || k, bind( input, design.settings, k ) );
+		if ( g[ 1 ] === 'image' ) {
+			var mb = mediaButton( input );
+			if ( mb ) {
+				f.appendChild( mb );
+			}
+		}
+		global.appendChild( f );
+	} );
 
 	/* ---------- merge tag reference ---------- */
 
@@ -511,7 +541,9 @@
 			el( 'span', { text: ' ' + B.mergeTags[ k ] } )
 		] ) );
 	} );
-	tags.appendChild( el( 'p', { class: 'description', text: 'Fallback: {first_name|there}' } ) );
+	if ( ! B.noFallback ) {
+		tags.appendChild( el( 'p', { class: 'description', text: 'Fallback: {first_name|there}' } ) );
+	}
 	tags.appendChild( tagList );
 
 
@@ -523,6 +555,11 @@
 		'[data-cfb].cfb-sel>td{box-shadow:inset 0 0 0 2px #2271b1}' +
 		'[data-cfb].cfb-drop-before>td{box-shadow:inset 0 4px 0 #2271b1}' +
 		'[data-cfb].cfb-drop-after>td{box-shadow:inset 0 -4px 0 #2271b1}' +
+		'div[data-cfb]{position:relative}' +
+		'div[data-cfb]:hover{outline:1px dashed #7aa7d6;outline-offset:3px}' +
+		'div[data-cfb].cfb-sel{outline:2px solid #2271b1;outline-offset:3px}' +
+		'div[data-cfb].cfb-drop-before{box-shadow:0 -6px 0 -2px #2271b1}' +
+		'div[data-cfb].cfb-drop-after{box-shadow:0 6px 0 -2px #2271b1}' +
 		'body.cfb-drop-end .cfb-end{display:block}' +
 		'.cfb-end{display:none;height:4px;background:#2271b1;margin:0 auto;max-width:600px}' +
 		'.cfb-empty-drop{margin:24px auto;max-width:560px;border:2px dashed #b6c2cf;border-radius:6px;padding:40px;text-align:center;color:#6b7280;font:14px/1.4 sans-serif}';
@@ -685,7 +722,7 @@
 
 	function preview() {
 		previewWrap.classList.add( 'is-loading' );
-		post( 'cf_preview', { design: JSON.stringify( design ), preheader: preheader ? preheader.value : '' } )
+		post( B.previewAction || 'cf_preview', { design: JSON.stringify( design ), preheader: preheader ? preheader.value : '' } )
 			.then( function ( res ) {
 				if ( res.success ) {
 					frame.srcdoc = res.data.html;
@@ -706,7 +743,7 @@
 
 	/* ---------- save / test ---------- */
 
-	var form = document.getElementById( 'cf-email-form' );
+	var form = document.getElementById( 'cf-email-form' ) || root.closest( 'form' );
 	form.addEventListener( 'submit', function () {
 		document.getElementById( 'cf-design' ).value = JSON.stringify( design );
 		dirty = false;

@@ -91,3 +91,5 @@
 .cfb-frame { width: 100%; height: calc(100vh - 170px); min-height: 520px; border: 0; background: #fff; border-radius: 6px; transition: width .2s; }
 .cfb-frame.is-mobile { width: 375px; }
 .cfb-preview.is-loading .cfb-frame { opacity: .7; }
+.cfb-field.cfb-check { flex-direction: row; align-items: center; gap: 8px; }
+.cfb-field.cfb-check > span { font-weight: 500; }

@@ -38,11 +38,15 @@ final class Plugin {
 		DB::maybe_upgrade();
 
 		require_once CHECKOUTFLOW_DIR . 'includes/helpers.php';
+		require_once CHECKOUTFLOW_DIR . 'includes/class-thankyou.php';
 
 		if ( Settings::flag( 'checkout_enabled' ) ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout.php';
-			require_once CHECKOUTFLOW_DIR . 'includes/class-thankyou.php';
 			new Checkout();
+			if ( Settings::flag( 'ty_enabled' ) ) {
+				// Funnel plugins (FunnelKit) redirect to their own thank-you page; use ours instead.
+				add_filter( 'woocommerce_get_checkout_order_received_url', array( 'CheckoutFlow\\Thank_You', 'own_received_url' ), 1000, 2 );
+			}
 		}
 		if ( Settings::flag( 'cart_enabled' ) ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/class-side-cart.php';

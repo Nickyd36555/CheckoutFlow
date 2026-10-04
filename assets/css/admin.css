@@ -105,3 +105,5 @@ fieldset[disabled] .button { pointer-events: none; opacity: .6; }
 .cf-tiers td { vertical-align: middle; }
 .cf-kind label { display: inline-block; margin-bottom: 6px; }
 .cf-row-actions { display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+.cf-ty-toggle { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.cf-ty-reset { margin-top: 16px; }

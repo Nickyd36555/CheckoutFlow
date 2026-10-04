@@ -1,7 +1,8 @@
 <?php
 /**
- * Thank-you (order received) page: restyled to match the checkout, with editable text.
- * Loaded only on the order-received endpoint.
+ * Thank-you (order received) page, built from blocks in CheckoutFlow → Thank You Page
+ * (same drag-and-drop editor as emails). Front-end hooks load only on the order-received
+ * endpoint; WooCommerce and payment-gateway thank-you hooks keep working.
  *
  * @package CheckoutFlow
  */
@@ -12,8 +13,24 @@ defined( 'ABSPATH' ) || exit;
 
 class Thank_You {
 
+	const OPTION = 'checkoutflow_thankyou_design';
+
+	/** @var bool The layout's summary cards already show the payment method. */
+	private static $cards_show_payment = false;
+
 	public static function enabled() {
 		return (bool) Settings::get( 'ty_enabled' );
+	}
+
+	/**
+	 * Other funnel plugins (e.g. FunnelKit) send customers to their own thank-you page;
+	 * point the order-received link back to WooCommerce's, which this class renders.
+	 */
+	public static function own_received_url( $url, $order ) {
+		if ( ! $order instanceof \WC_Order || false !== strpos( (string) $url, 'order-received' ) ) {
+			return $url;
+		}
+		return add_query_arg( 'key', $order->get_order_key(), wc_get_endpoint_url( 'order-received', $order->get_id(), wc_get_checkout_url() ) );
 	}
 
 	/**
@@ -23,9 +40,8 @@ class Thank_You {
 		add_filter( 'woocommerce_locate_template', array( __CLASS__, 'locate_template' ), 20, 2 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_filter( 'body_class', array( __CLASS__, 'body_class' ) );
-		// Our own order details replace WooCommerce's table; other woocommerce_thankyou callbacks still run.
+		// The Order items / Customer blocks replace WooCommerce's table; other woocommerce_thankyou callbacks still run.
 		remove_action( 'woocommerce_thankyou', 'woocommerce_order_details_table', 10 );
-		add_action( 'woocommerce_thankyou', array( __CLASS__, 'details' ), 10 );
 	}
 
 	public static function locate_template( $template, $name ) {
@@ -39,7 +55,7 @@ class Thank_You {
 	public static function assets() {
 		list( $css, $ver ) = asset( 'css/thankyou.css' );
 		wp_enqueue_style( 'checkoutflow-thankyou', $css, array(), $ver );
-		wp_add_inline_style( 'checkoutflow-thankyou', 'body.cf-thankyou-page{--cf-accent:' . Settings::get( 'checkout_accent_color' ) . ';}' . design_css() );
+		wp_add_inline_style( 'checkoutflow-thankyou', self::inline_css( self::design() ) );
 	}
 
 	public static function body_class( $classes ) {
@@ -47,108 +63,461 @@ class Thank_You {
 		return $classes;
 	}
 
+	/* ---------- design storage ---------- */
+
 	/**
-	 * A text setting with the order's tags filled in.
+	 * Block types for the builder: label, default props, and select options.
+	 */
+	public static function block_types() {
+		$align = array(
+			'left'   => __( 'Left', 'checkoutflow' ),
+			'center' => __( 'Center', 'checkoutflow' ),
+			'right'  => __( 'Right', 'checkoutflow' ),
+		);
+		return array(
+			'heading'  => array(
+				'label' => __( 'Heading', 'checkoutflow' ),
+				'props' => array( 'text' => __( 'Thank you for your order, {first_name}!', 'checkoutflow' ), 'size' => 30, 'align' => 'center', 'color' => '' ),
+			),
+			'text'     => array(
+				'label' => __( 'Text', 'checkoutflow' ),
+				'props' => array( 'html' => '<p>' . __( 'Your text here.', 'checkoutflow' ) . '</p>', 'align' => 'left' ),
+			),
+			'overview' => array(
+				'label'   => __( 'Order summary cards', 'checkoutflow' ),
+				'dynamic' => true,
+				'props'   => array( 'show_date' => true, 'show_total' => true, 'show_payment' => true, 'show_email' => false ),
+			),
+			'items'    => array(
+				'label'   => __( 'Order items', 'checkoutflow' ),
+				'dynamic' => true,
+				'props'   => array( 'title' => __( 'Items', 'checkoutflow' ), 'show_images' => true, 'show_totals' => true ),
+			),
+			'payment'  => array(
+				'label'   => __( 'Payment instructions', 'checkoutflow' ),
+				'dynamic' => true,
+				'props'   => array( 'title' => '' ),
+			),
+			'customer' => array(
+				'label'   => __( 'Customer information', 'checkoutflow' ),
+				'dynamic' => true,
+				'props'   => array( 'title' => __( 'Information', 'checkoutflow' ), 'billing' => 'different', 'show_contact' => true ),
+				'options' => array(
+					'billing' => array(
+						'different' => __( 'Billing address only when different', 'checkoutflow' ),
+						'always'    => __( 'Always show billing address', 'checkoutflow' ),
+						'never'     => __( 'Never show billing address', 'checkoutflow' ),
+					),
+				),
+			),
+			'support'  => array(
+				'label' => __( 'Support bar', 'checkoutflow' ),
+				'props' => array( 'title' => __( 'For Support', 'checkoutflow' ), 'email' => get_option( 'woocommerce_email_from_address', get_option( 'admin_email' ) ), 'phone' => '' ),
+			),
+			'button'   => array(
+				'label' => __( 'Button', 'checkoutflow' ),
+				'props' => array( 'text' => __( 'Continue shopping', 'checkoutflow' ), 'url' => '{shop_url}', 'align' => 'center', 'color' => '' ),
+			),
+			'image'    => array(
+				'label' => __( 'Image', 'checkoutflow' ),
+				'props' => array( 'src' => '', 'alt' => '', 'url' => '', 'width' => 100, 'align' => 'center' ),
+			),
+			'divider'  => array(
+				'label' => __( 'Divider', 'checkoutflow' ),
+				'props' => array( 'color' => '' ),
+			),
+			'spacer'   => array(
+				'label' => __( 'Spacer', 'checkoutflow' ),
+				'props' => array( 'height' => 24 ),
+			),
+			'html'     => array(
+				'label' => __( 'Custom HTML', 'checkoutflow' ),
+				'props' => array( 'html' => '' ),
+			),
+		) + array( '_align' => $align ); // Shared select options (not a block).
+	}
+
+	/**
+	 * @return array Block types without the shared-options entry.
+	 */
+	public static function types() {
+		$t = self::block_types();
+		unset( $t['_align'] );
+		return $t;
+	}
+
+	public static function default_settings() {
+		return array(
+			'page_bg'    => '#f4f6f7',
+			'card_bg'    => '#ffffff',
+			'accent'     => (string) Settings::get( 'checkout_accent_color' ),
+			'text_color' => '#111111',
+			'width'      => 760,
+		);
+	}
+
+	/**
+	 * Default layout, modeled on a typical FunnelKit thank-you page.
+	 */
+	public static function default_design() {
+		$t      = self::types();
+		$blocks = array();
+		$add    = static function ( $type, $props = array() ) use ( &$blocks, $t ) {
+			$blocks[] = array_merge( array( 'type' => $type ), $t[ $type ]['props'], $props );
+		};
+		$add( 'heading', array( 'text' => __( 'Thank You For Your Order, {first_name}!', 'checkoutflow' ) ) );
+		$add( 'text', array( 'html' => '<p>' . __( 'We are pleased to confirm your order no. <strong>#{order_number}</strong>. A confirmation email has been sent to <strong>{email}</strong>.', 'checkoutflow' ) . '</p>', 'align' => 'center' ) );
+		$add( 'overview' );
+		$add( 'payment' );
+		$add( 'items' );
+		$add( 'customer' );
+		$add( 'support' );
+		$add( 'button' );
+		return array( 'settings' => self::default_settings(), 'blocks' => $blocks );
+	}
+
+	/**
+	 * Saved design (or the default).
+	 */
+	public static function design() {
+		$saved = get_option( self::OPTION );
+		return is_array( $saved ) && ! empty( $saved['blocks'] ) ? self::sanitize( $saved, true ) : self::default_design();
+	}
+
+	/**
+	 * @param array $design  Raw design.
+	 * @param bool  $trusted Stored by a user who could post unfiltered HTML.
+	 */
+	public static function sanitize( $design, $trusted = false ) {
+		$design = is_array( $design ) ? $design : array();
+		$raw_s  = array_merge( self::default_settings(), isset( $design['settings'] ) && is_array( $design['settings'] ) ? $design['settings'] : array() );
+		$hex    = static function ( $v, $fallback ) {
+			$c = sanitize_hex_color( (string) $v );
+			return $c ? $c : $fallback;
+		};
+		$settings = array(
+			'page_bg'    => $hex( $raw_s['page_bg'], '#f4f6f7' ),
+			'card_bg'    => $hex( $raw_s['card_bg'], '#ffffff' ),
+			'accent'     => $hex( $raw_s['accent'], '#1f6feb' ),
+			'text_color' => $hex( $raw_s['text_color'], '#111111' ),
+			'width'      => max( 480, min( 1400, (int) $raw_s['width'] ) ),
+		);
+
+		$types   = self::types();
+		$options = self::block_types();
+		$blocks  = array();
+		foreach ( isset( $design['blocks'] ) && is_array( $design['blocks'] ) ? $design['blocks'] : array() as $block ) {
+			$type = isset( $block['type'] ) ? $block['type'] : '';
+			if ( ! isset( $types[ $type ] ) ) {
+				continue;
+			}
+			$b = array( 'type' => $type );
+			foreach ( $types[ $type ]['props'] as $key => $default ) {
+				$v = isset( $block[ $key ] ) ? $block[ $key ] : $default;
+				if ( is_bool( $default ) ) {
+					$b[ $key ] = ! empty( $v ) && 'false' !== $v;
+				} elseif ( is_int( $default ) ) {
+					$b[ $key ] = (int) $v;
+				} elseif ( 'html' === $key ) {
+					$b[ $key ] = ( 'html' === $type && ( $trusted || current_user_can( 'unfiltered_html' ) ) ) ? (string) $v : wp_kses_post( (string) $v );
+				} elseif ( 'url' === $key || 'src' === $key ) {
+					$b[ $key ] = preg_match( '/^\{[a-z_]+\}$/', (string) $v ) ? (string) $v : esc_url_raw( (string) $v );
+				} elseif ( 'color' === $key ) {
+					$b[ $key ] = sanitize_hex_color( (string) $v ) ? sanitize_hex_color( (string) $v ) : '';
+				} elseif ( 'align' === $key ) {
+					$b[ $key ] = isset( $options['_align'][ $v ] ) ? $v : $default;
+				} elseif ( isset( $types[ $type ]['options'][ $key ] ) ) {
+					$b[ $key ] = isset( $types[ $type ]['options'][ $key ][ $v ] ) ? $v : $default;
+				} elseif ( 'email' === $key ) {
+					$b[ $key ] = sanitize_email( (string) $v );
+				} else {
+					$b[ $key ] = sanitize_text_field( (string) $v );
+				}
+			}
+			$blocks[] = $b;
+		}
+		return array( 'settings' => $settings, 'blocks' => $blocks );
+	}
+
+	public static function save( $design ) {
+		update_option( self::OPTION, self::sanitize( $design ), false );
+	}
+
+	/* ---------- rendering ---------- */
+
+	/**
+	 * Merge tags available in headings, text and links.
 	 *
-	 * @param string    $key   Setting key.
-	 * @param \WC_Order $order Order.
+	 * @return array tag => description
+	 */
+	public static function merge_tags() {
+		return array(
+			'first_name'      => __( 'Customer first name', 'checkoutflow' ),
+			'last_name'       => __( 'Customer last name', 'checkoutflow' ),
+			'email'           => __( 'Customer email', 'checkoutflow' ),
+			'phone'           => __( 'Customer phone', 'checkoutflow' ),
+			'order_number'    => __( 'Order number', 'checkoutflow' ),
+			'order_date'      => __( 'Order date', 'checkoutflow' ),
+			'order_total'     => __( 'Order total', 'checkoutflow' ),
+			'payment_method'  => __( 'Payment method', 'checkoutflow' ),
+			'shipping_method' => __( 'Shipping method', 'checkoutflow' ),
+			'site_name'       => __( 'Store name', 'checkoutflow' ),
+			'shop_url'        => __( 'Continue-shopping link', 'checkoutflow' ),
+			'account_url'     => __( 'My account link', 'checkoutflow' ),
+			'track_url'       => __( 'Order tracking page link', 'checkoutflow' ),
+		);
+	}
+
+	private static function tag_values( $order ) {
+		$first = $order->get_billing_first_name() ? $order->get_billing_first_name() : $order->get_shipping_first_name();
+		$date  = $order->get_date_created();
+		return array(
+			'first_name'      => $first,
+			'last_name'       => $order->get_billing_last_name() ? $order->get_billing_last_name() : $order->get_shipping_last_name(),
+			'email'           => $order->get_billing_email(),
+			'phone'           => $order->get_billing_phone(),
+			'order_number'    => $order->get_order_number(),
+			'order_date'      => $date ? wc_format_datetime( $date ) : '',
+			'order_total'     => html_entity_decode( wp_strip_all_tags( wc_price( $order->get_total(), array( 'currency' => $order->get_currency() ) ) ), ENT_QUOTES, 'UTF-8' ),
+			'payment_method'  => $order->get_payment_method_title(),
+			'shipping_method' => $order->get_shipping_method(),
+			'site_name'       => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
+			'shop_url'        => continue_shopping_url(),
+			'account_url'     => wc_get_page_permalink( 'myaccount' ),
+			'track_url'       => self::track_url(),
+		);
+	}
+
+	/**
+	 * Replace {tags} in already-escaped HTML/text. Values are escaped for the context.
+	 */
+	private static function merge( $html, $values, $context = 'html' ) {
+		return preg_replace_callback(
+			'/\{([a-z_]+)\}/',
+			static function ( $m ) use ( $values, $context ) {
+				if ( ! isset( $values[ $m[1] ] ) ) {
+					return $m[0];
+				}
+				return 'url' === $context ? $values[ $m[1] ] : esc_html( $values[ $m[1] ] );
+			},
+			$html
+		);
+	}
+
+	/**
+	 * Render the design for an order.
+	 *
+	 * @param array     $design Sanitized design.
+	 * @param \WC_Order $order  Order.
+	 * @param bool      $canvas Builder preview: tag blocks and use placeholders for gateway output.
 	 * @return string
 	 */
-	public static function text( $key, $order ) {
-		$first = $order->get_billing_first_name() ? $order->get_billing_first_name() : $order->get_shipping_first_name();
-		$text  = strtr(
-			(string) Settings::get( $key ),
-			array(
-				'{first_name}'   => $first,
-				'{order_number}' => $order->get_order_number(),
-				'{email}'        => $order->get_billing_email(),
-				'{total}'        => html_entity_decode( wp_strip_all_tags( wc_price( $order->get_total(), array( 'currency' => $order->get_currency() ) ) ), ENT_QUOTES, 'UTF-8' ),
-			)
+	public static function render( $design, $order, $canvas = false ) {
+		$values  = self::tag_values( $order );
+		$out     = '';
+		$has_pay = false;
+		self::$cards_show_payment = (bool) array_filter(
+			$design['blocks'],
+			static function ( $b ) {
+				return 'overview' === $b['type'] && ! empty( $b['show_payment'] );
+			}
 		);
-		// "Thank you, !" when the name is missing.
-		return trim( preg_replace( '/\s+([,!.])/', '$1', preg_replace( '/,\s*!/', '!', $text ) ) );
+		foreach ( $design['blocks'] as $i => $b ) {
+			if ( 'payment' === $b['type'] ) {
+				$has_pay = true;
+			}
+			$html = self::block( $b, $order, $values, $canvas );
+			if ( $canvas && '' === $html ) {
+				$types = self::types();
+				$html  = '<div class="cf-tyb-empty">' . esc_html( $types[ $b['type'] ]['label'] ) . '</div>';
+			}
+			if ( '' === $html ) {
+				continue;
+			}
+			$out .= '<div class="cf-tyb cf-tyb--' . esc_attr( $b['type'] ) . '"' . ( $canvas ? ' data-cfb="' . (int) $i . '"' : '' ) . '>' . $html . '</div>';
+		}
+		// Payment instructions must never be lost (e.g. a crypto payment box): if the
+		// layout has no Payment block, show them after the opening heading/text.
+		if ( ! $has_pay && ! $canvas ) {
+			$pay = self::payment_html( $order, '' );
+			if ( '' !== $pay ) {
+				$out = '<div class="cf-tyb cf-tyb--payment">' . $pay . '</div>' . $out;
+			}
+		}
+		return '<div class="cf-tyb-page">' . $out . '</div>';
 	}
 
-	/**
-	 * Order items, totals, addresses and "what happens next".
-	 *
-	 * @param int $order_id Order ID.
-	 */
-	public static function details( $order_id ) {
-		$order = wc_get_order( $order_id );
-		if ( ! $order ) {
-			return;
+	public static function inline_css( $design ) {
+		$s = $design['settings'];
+		return 'body.cf-thankyou-page,.cf-tyb-preview{--cf-ty-page-bg:' . $s['page_bg'] . ';--cf-ty-card-bg:' . $s['card_bg'] . ';--cf-ty-accent:' . $s['accent'] . ';--cf-ty-text:' . $s['text_color'] . ';--cf-ty-width:' . (int) $s['width'] . 'px;}' . design_css();
+	}
+
+	private static function block( $b, $order, $values, $canvas ) {
+		switch ( $b['type'] ) {
+			case 'heading':
+				$style = 'font-size:' . max( 14, min( 64, (int) $b['size'] ) ) . 'px;text-align:' . $b['align'] . ';' . ( $b['color'] ? 'color:' . $b['color'] . ';' : '' );
+				return '<h1 class="cf-tyb-heading" style="' . esc_attr( $style ) . '">' . self::merge( esc_html( $b['text'] ), $values ) . '</h1>';
+
+			case 'text':
+				return '<div class="cf-tyb-text" style="text-align:' . esc_attr( $b['align'] ) . '">' . self::merge( wp_kses_post( $b['html'] ), $values ) . '</div>';
+
+			case 'overview':
+				return self::overview_html( $order, $b );
+
+			case 'items':
+				return self::items_html( $order, $b );
+
+			case 'payment':
+				if ( $canvas ) {
+					return '<div class="cf-tyb-card cf-tyb-placeholder">' . esc_html__( 'Payment instructions from the customer\'s payment method appear here (e.g. the crypto payment box or bank details).', 'checkoutflow' ) . '</div>';
+				}
+				return self::payment_html( $order, $b['title'] );
+
+			case 'customer':
+				return self::customer_html( $order, $b );
+
+			case 'support':
+				if ( ! $b['email'] && ! $b['phone'] ) {
+					return '';
+				}
+				$html = '<div class="cf-tyb-card cf-tyb-support-bar">';
+				if ( $b['title'] ) {
+					$html .= '<strong class="cf-tyb-support-title">' . esc_html( $b['title'] ) . '</strong>';
+				}
+				if ( $b['email'] ) {
+					$html .= '<a class="cf-tyb-support-item" href="mailto:' . esc_attr( $b['email'] ) . '"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg>' . esc_html( $b['email'] ) . '</a>';
+				}
+				if ( $b['phone'] ) {
+					$html .= '<a class="cf-tyb-support-item" href="tel:' . esc_attr( preg_replace( '/[^0-9+]/', '', $b['phone'] ) ) . '"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1Z"/></svg>' . esc_html( $b['phone'] ) . '</a>';
+				}
+				return $html . '</div>';
+
+			case 'button':
+				$url = self::merge( $b['url'], $values, 'url' );
+				if ( ! $b['text'] || ! $url ) {
+					return '';
+				}
+				$style = $b['color'] ? 'background:' . $b['color'] . ';border-color:' . $b['color'] . ';' : '';
+				return '<p class="cf-tyb-button-wrap" style="text-align:' . esc_attr( $b['align'] ) . '"><a class="cf-tyb-button" style="' . esc_attr( $style ) . '" href="' . esc_url( $url ) . '">' . self::merge( esc_html( $b['text'] ), $values ) . '</a></p>';
+
+			case 'image':
+				if ( ! $b['src'] ) {
+					return $canvas ? '<div class="cf-tyb-empty">' . esc_html__( 'Image – set a URL in the block settings', 'checkoutflow' ) . '</div>' : '';
+				}
+				$img = '<img src="' . esc_url( $b['src'] ) . '" alt="' . esc_attr( $b['alt'] ) . '" style="width:' . max( 10, min( 100, (int) $b['width'] ) ) . '%">';
+				if ( $b['url'] ) {
+					$img = '<a href="' . esc_url( self::merge( $b['url'], $values, 'url' ) ) . '">' . $img . '</a>';
+				}
+				return '<div class="cf-tyb-image" style="text-align:' . esc_attr( $b['align'] ) . '">' . $img . '</div>';
+
+			case 'divider':
+				return '<hr class="cf-tyb-divider"' . ( $b['color'] ? ' style="border-color:' . esc_attr( $b['color'] ) . '"' : '' ) . '>';
+
+			case 'spacer':
+				return '<div style="height:' . max( 4, min( 200, (int) $b['height'] ) ) . 'px" aria-hidden="true"></div>';
+
+			case 'html':
+				return self::merge( (string) $b['html'], $values );
 		}
-		$show_images = (bool) Settings::get( 'ty_show_images' );
-		$totals      = $order->get_order_item_totals();
-		if ( Settings::get( 'ty_show_overview' ) ) {
-			unset( $totals['payment_method'] ); // Already in the overview cards.
+		return '';
+	}
+
+	private static function payment_html( $order, $title ) {
+		ob_start();
+		do_action( 'woocommerce_thankyou_' . $order->get_payment_method(), $order->get_id() );
+		$html = trim( (string) ob_get_clean() );
+		if ( '' === $html ) {
+			return '';
 		}
+		return '<div class="cf-tyb-card cf-tyb-gateway">' . ( $title ? '<h2 class="cf-tyb-h">' . esc_html( $title ) . '</h2>' : '' ) . $html . '</div>';
+	}
+
+	private static function overview_html( $order, $b ) {
+		$cards = array( array( __( 'Order number', 'checkoutflow' ), esc_html( $order->get_order_number() ) ) );
+		if ( $b['show_date'] && $order->get_date_created() ) {
+			$cards[] = array( __( 'Date', 'checkoutflow' ), esc_html( wc_format_datetime( $order->get_date_created() ) ) );
+		}
+		if ( $b['show_email'] && $order->get_billing_email() ) {
+			$cards[] = array( __( 'Email', 'checkoutflow' ), esc_html( $order->get_billing_email() ) );
+		}
+		if ( $b['show_total'] ) {
+			$cards[] = array( __( 'Total', 'checkoutflow' ), wp_kses_post( $order->get_formatted_order_total() ) );
+		}
+		if ( $b['show_payment'] && $order->get_payment_method_title() ) {
+			$cards[] = array( __( 'Payment method', 'checkoutflow' ), wp_kses_post( $order->get_payment_method_title() ) );
+		}
+		$html = '<ul class="cf-tyb-overview">';
+		foreach ( $cards as $c ) {
+			$html .= '<li><span>' . esc_html( $c[0] ) . '</span><strong>' . $c[1] . '</strong></li>';
+		}
+		return $html . '</ul>';
+	}
+
+	private static function items_html( $order, $b ) {
+		ob_start();
 		?>
-		<div class="cf-ty-grid">
-			<section class="cf-ty-card cf-ty-order">
-				<h2 class="cf-ty-h"><?php esc_html_e( 'Order details', 'checkoutflow' ); ?></h2>
-				<ul class="cf-ty-items">
-					<?php
-					foreach ( $order->get_items() as $item_id => $item ) :
-						if ( ! apply_filters( 'woocommerce_order_item_visible', true, $item ) ) {
-							continue;
-						}
-						$product = $item->get_product();
-						$qty     = $item->get_quantity();
-						?>
-						<li class="cf-ty-item">
-							<?php if ( $show_images ) : ?>
-								<span class="cf-ty-thumb">
-									<?php echo $product ? wp_kses_post( $product->get_image( 'woocommerce_gallery_thumbnail' ) ) : ''; ?>
-									<span class="cf-ty-qty"><?php echo esc_html( $qty ); ?></span>
-								</span>
-							<?php endif; ?>
-							<span class="cf-ty-name">
-								<?php echo wp_kses_post( apply_filters( 'woocommerce_order_item_name', $item->get_name(), $item, false ) ); ?>
-								<?php if ( ! $show_images && $qty > 1 ) : ?>
-									<span class="cf-ty-times">&times; <?php echo esc_html( $qty ); ?></span>
-								<?php endif; ?>
-								<?php
-								do_action( 'woocommerce_order_item_meta_start', $item_id, $item, $order, false );
-								wc_display_item_meta( $item );
-								do_action( 'woocommerce_order_item_meta_end', $item_id, $item, $order, false );
-								?>
+		<div class="cf-tyb-card cf-tyb-items-card">
+			<?php if ( $b['title'] ) : ?>
+				<h2 class="cf-tyb-h"><?php echo esc_html( $b['title'] ); ?></h2>
+			<?php endif; ?>
+			<ul class="cf-tyb-items">
+				<?php
+				foreach ( $order->get_items() as $item_id => $item ) :
+					if ( ! apply_filters( 'woocommerce_order_item_visible', true, $item ) ) {
+						continue;
+					}
+					$product = $item->get_product();
+					$qty     = $item->get_quantity();
+					?>
+					<li class="cf-tyb-item">
+						<?php if ( $b['show_images'] ) : ?>
+							<span class="cf-tyb-thumb">
+								<?php echo $product ? wp_kses_post( $product->get_image( 'woocommerce_gallery_thumbnail' ) ) : ''; ?>
+								<span class="cf-tyb-qty"><?php echo esc_html( $qty ); ?></span>
 							</span>
-							<span class="cf-ty-price"><?php echo wp_kses_post( self::line_total( $order, $item, $product ) ); ?></span>
-						</li>
+						<?php endif; ?>
+						<span class="cf-tyb-name">
+							<?php echo wp_kses_post( apply_filters( 'woocommerce_order_item_name', $item->get_name(), $item, false ) ); ?>
+							<?php if ( ! $b['show_images'] ) : ?>
+								<span class="cf-tyb-times">&times; <?php echo esc_html( $qty ); ?></span>
+							<?php endif; ?>
+							<?php
+							do_action( 'woocommerce_order_item_meta_start', $item_id, $item, $order, false );
+							wc_display_item_meta( $item );
+							do_action( 'woocommerce_order_item_meta_end', $item_id, $item, $order, false );
+							?>
+						</span>
+						<span class="cf-tyb-price"><?php echo wp_kses_post( self::line_total( $order, $item, $product ) ); ?></span>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+			<?php
+			if ( $b['show_totals'] ) :
+				$totals = $order->get_order_item_totals();
+				if ( self::$cards_show_payment ) {
+					unset( $totals['payment_method'] );
+				}
+				?>
+				<dl class="cf-tyb-totals">
+					<?php foreach ( $totals as $key => $total ) : ?>
+						<div class="cf-tyb-total-row is-<?php echo esc_attr( sanitize_html_class( $key ) ); ?>">
+							<dt><?php echo esc_html( rtrim( wp_strip_all_tags( $total['label'] ), ':' ) ); ?></dt>
+							<dd><?php echo wp_kses_post( $total['value'] ); ?></dd>
+						</div>
 					<?php endforeach; ?>
-				</ul>
-
-				<?php if ( $totals ) : ?>
-					<dl class="cf-ty-totals">
-						<?php foreach ( $totals as $key => $total ) : ?>
-							<div class="cf-ty-total-row is-<?php echo esc_attr( sanitize_html_class( $key ) ); ?>">
-								<dt><?php echo esc_html( rtrim( wp_strip_all_tags( $total['label'] ), ':' ) ); ?></dt>
-								<dd><?php echo wp_kses_post( $total['value'] ); ?></dd>
-							</div>
-						<?php endforeach; ?>
-					</dl>
-				<?php endif; ?>
-
-				<?php if ( $order->get_customer_note() ) : ?>
-					<p class="cf-ty-note"><strong><?php esc_html_e( 'Note:', 'woocommerce' ); ?></strong> <?php echo wp_kses( nl2br( wptexturize( $order->get_customer_note() ) ), array( 'br' => array() ) ); ?></p>
-				<?php endif; ?>
-
-				<?php do_action( 'woocommerce_order_details_after_order_table', $order ); ?>
-			</section>
-
-			<div class="cf-ty-side">
-				<?php self::addresses( $order ); ?>
-				<?php self::next_steps(); ?>
-			</div>
+				</dl>
+			<?php endif; ?>
+			<?php if ( $order->get_customer_note() ) : ?>
+				<p class="cf-tyb-note"><strong><?php esc_html_e( 'Note:', 'woocommerce' ); ?></strong> <?php echo wp_kses( nl2br( wptexturize( $order->get_customer_note() ) ), array( 'br' => array() ) ); ?></p>
+			<?php endif; ?>
+			<?php do_action( 'woocommerce_order_details_after_order_table', $order ); ?>
 		</div>
 		<?php
+		return (string) ob_get_clean();
 	}
 
 	/**
-	 * Line total, with the list price struck through when the line was discounted
-	 * (e.g. a store-wide sale or a CheckoutFlow discount rule).
+	 * Line total, with the list price struck through when the line was discounted.
 	 */
 	private static function line_total( $order, $item, $product ) {
 		$html = $order->get_formatted_line_subtotal( $item );
@@ -163,98 +532,102 @@ class Thank_You {
 		return $html;
 	}
 
-	private static function addresses( $order ) {
+	private static function customer_html( $order, $b ) {
 		$shipping = $order->needs_shipping_address() ? $order->get_formatted_shipping_address() : '';
 		$billing  = $order->get_formatted_billing_address();
-		$mode     = Settings::get( 'ty_billing' );
 		$same     = $shipping && wp_strip_all_tags( $shipping ) === wp_strip_all_tags( $billing );
-		$show_bil = $billing && ( 'always' === $mode || ( 'different' === $mode && ( ! $same || ! $shipping ) ) );
-		if ( ! $shipping && ! $show_bil ) {
-			return;
-		}
-		?>
-		<section class="cf-ty-card cf-ty-addresses">
-			<?php if ( $shipping ) : ?>
-				<div class="cf-ty-address">
-					<h2 class="cf-ty-h"><?php esc_html_e( 'Shipping to', 'checkoutflow' ); ?></h2>
-					<address><?php echo wp_kses_post( $shipping ); ?></address>
-					<?php if ( $order->get_shipping_phone() || $order->get_billing_phone() ) : ?>
-						<p class="cf-ty-contact"><?php echo esc_html( $order->get_shipping_phone() ? $order->get_shipping_phone() : $order->get_billing_phone() ); ?></p>
-					<?php endif; ?>
-					<?php if ( $order->get_shipping_method() ) : ?>
-						<p class="cf-ty-contact"><?php echo esc_html( $order->get_shipping_method() ); ?></p>
-					<?php endif; ?>
-				</div>
-			<?php endif; ?>
-			<?php if ( $show_bil ) : ?>
-				<div class="cf-ty-address">
-					<h2 class="cf-ty-h"><?php esc_html_e( 'Billing address', 'checkoutflow' ); ?></h2>
-					<address><?php echo wp_kses_post( $billing ); ?></address>
-					<?php if ( ! $shipping && $order->get_billing_phone() ) : ?>
-						<p class="cf-ty-contact"><?php echo esc_html( $order->get_billing_phone() ); ?></p>
-					<?php endif; ?>
-				</div>
-			<?php endif; ?>
-			<?php do_action( 'woocommerce_order_details_after_customer_details', $order ); ?>
-		</section>
-		<?php
-	}
-
-	private static function next_steps() {
-		$html = trim( (string) Settings::get( 'ty_next_html' ) );
-		if ( '' === $html ) {
-			$html = trim( (string) Settings::get( 'checkout_summary_html' ) );
-		}
-		$support = trim( (string) Settings::get( 'ty_support_html' ) );
-		$buttons = array();
-		foreach ( array( 1, 2 ) as $n ) {
-			$label = trim( (string) Settings::get( 'ty_button' . $n . '_text' ) );
-			$url   = $label ? self::button_url( $n ) : '';
-			if ( $label && $url ) {
-				$buttons[] = array( $label, $url );
+		$show_bil = $billing && ( 'always' === $b['billing'] || ( 'different' === $b['billing'] && ( ! $same || ! $shipping ) ) );
+		$fields   = array();
+		if ( $b['show_contact'] ) {
+			if ( $order->get_billing_email() ) {
+				$fields[] = array( __( 'Email', 'checkoutflow' ), esc_html( $order->get_billing_email() ) );
+			}
+			$phone = $order->get_billing_phone() ? $order->get_billing_phone() : $order->get_shipping_phone();
+			if ( $phone ) {
+				$fields[] = array( __( 'Phone', 'checkoutflow' ), esc_html( $phone ) );
 			}
 		}
-		if ( '' === $html && '' === $support && ! $buttons ) {
-			return;
+		if ( $shipping ) {
+			$fields[] = array( __( 'Shipping address', 'checkoutflow' ), '<address>' . wp_kses_post( $shipping ) . '</address>' );
 		}
+		if ( $show_bil ) {
+			$fields[] = array( __( 'Billing address', 'checkoutflow' ), '<address>' . wp_kses_post( $billing ) . '</address>' );
+		}
+		if ( $order->get_shipping_method() ) {
+			$fields[] = array( __( 'Shipping method', 'checkoutflow' ), esc_html( $order->get_shipping_method() ) );
+		}
+		if ( ! $fields ) {
+			return '';
+		}
+		ob_start();
 		?>
-		<section class="cf-ty-card cf-ty-next">
-			<?php if ( '' !== $html ) : ?>
-				<h2 class="cf-ty-h"><?php echo esc_html( Settings::get( 'ty_next_heading' ) ); ?></h2>
-				<div class="cf-ty-next-text"><?php echo wp_kses_post( wpautop( $html ) ); ?></div>
+		<div class="cf-tyb-card cf-tyb-customer">
+			<?php if ( $b['title'] ) : ?>
+				<h2 class="cf-tyb-h"><?php echo esc_html( $b['title'] ); ?></h2>
 			<?php endif; ?>
-			<?php if ( '' !== $support ) : ?>
-				<div class="cf-ty-support"><?php echo wp_kses_post( wpautop( $support ) ); ?></div>
-			<?php endif; ?>
-			<?php if ( $buttons ) : ?>
-				<p class="cf-ty-actions">
-					<?php foreach ( $buttons as $i => $b ) : ?>
-						<a class="cf-ty-btn<?php echo $i ? ' is-ghost' : ''; ?>" href="<?php echo esc_url( $b[1] ); ?>"><?php echo esc_html( $b[0] ); ?></a>
-					<?php endforeach; ?>
-				</p>
-			<?php endif; ?>
-		</section>
+			<dl class="cf-tyb-fields">
+				<?php foreach ( $fields as $f ) : ?>
+					<div><dt><?php echo esc_html( $f[0] ); ?></dt><dd><?php echo $f[1]; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above ?></dd></div>
+				<?php endforeach; ?>
+			</dl>
+			<?php do_action( 'woocommerce_order_details_after_customer_details', $order ); ?>
+		</div>
 		<?php
+		return (string) ob_get_clean();
 	}
 
 	/**
-	 * @param int $n Button number.
-	 * @return string
+	 * The store's order-tracking page, else the customer's account orders.
 	 */
-	private static function button_url( $n ) {
-		$url = (string) Settings::get( 'ty_button' . $n . '_url' );
-		if ( '' !== $url ) {
-			return $url;
-		}
-		if ( 2 === $n ) {
-			return continue_shopping_url();
-		}
-		foreach ( array( 'track-your-order', 'order-tracking', 'track-order' ) as $slug ) {
+	public static function track_url() {
+		foreach ( array( 'track-order', 'track-your-order', 'order-tracking' ) as $slug ) {
 			$page = get_page_by_path( $slug );
 			if ( $page && 'publish' === $page->post_status ) {
 				return get_permalink( $page );
 			}
 		}
-		return is_user_logged_in() ? wc_get_account_endpoint_url( 'orders' ) : '';
+		return wc_get_account_endpoint_url( 'orders' );
+	}
+
+	/* ---------- builder preview ---------- */
+
+	/**
+	 * An order to preview with: the newest real order, else an unsaved sample.
+	 *
+	 * @return \WC_Order
+	 */
+	public static function preview_order() {
+		$orders = wc_get_orders( array( 'limit' => 1, 'orderby' => 'date', 'order' => 'DESC', 'type' => 'shop_order', 'status' => array_keys( wc_get_order_statuses() ) ) );
+		if ( $orders ) {
+			return $orders[0];
+		}
+		$order = new \WC_Order();
+		$order->set_billing_first_name( 'Jordan' );
+		$order->set_billing_last_name( 'Copeland' );
+		$order->set_billing_email( 'jordan@example.com' );
+		$order->set_billing_phone( '555-0100' );
+		$order->set_billing_address_1( '100 Main St' );
+		$order->set_billing_city( 'Marietta' );
+		$order->set_billing_state( 'GA' );
+		$order->set_billing_postcode( '30064' );
+		$order->set_billing_country( 'US' );
+		$products = wc_get_products( array( 'limit' => 2, 'status' => 'publish' ) );
+		foreach ( $products as $p ) {
+			$order->add_product( $p, 1 );
+		}
+		$order->set_date_created( time() );
+		$order->calculate_totals( false );
+		return $order;
+	}
+
+	/**
+	 * Full HTML document for the builder's preview iframe.
+	 */
+	public static function preview_document( $design ) {
+		$order = self::preview_order();
+		$css   = file_get_contents( CHECKOUTFLOW_DIR . 'assets/css/thankyou.css' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		return '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--cf-ty-page-bg)}'
+			. $css . self::inline_css( $design ) . '</style></head><body class="cf-thankyou-page cf-tyb-preview"><div class="cf-ty">'
+			. self::render( $design, $order, true ) . '</div></body></html>';
 	}
 }

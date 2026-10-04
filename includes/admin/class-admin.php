@@ -9,6 +9,7 @@ namespace CheckoutFlow\Admin;
 
 use CheckoutFlow\DB;
 use CheckoutFlow\Settings;
+use CheckoutFlow\Thank_You;
 use CheckoutFlow\Mail\SMTP;
 use CheckoutFlow\Mail\Renderer;
 use CheckoutFlow\Mail\Merge_Tags;
@@ -27,11 +28,11 @@ class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 
-		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
+		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'save_thankyou', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
-		foreach ( array( 'preview', 'send_test', 'audience_count' ) as $action ) {
+		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview' ) as $action ) {
 			add_action( 'wp_ajax_cf_' . $action, array( $this, 'ajax_' . $action ) );
 		}
 		add_filter( 'plugin_action_links_' . plugin_basename( CHECKOUTFLOW_FILE ), array( $this, 'action_links' ) );
@@ -54,6 +55,7 @@ class Admin {
 		add_submenu_page( 'checkoutflow', __( 'Contacts', 'checkoutflow' ), __( 'Contacts', 'checkoutflow' ), self::CAP, 'checkoutflow-contacts', array( $this, 'page_contacts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Discounts', 'checkoutflow' ), __( 'Discounts', 'checkoutflow' ), self::CAP, 'checkoutflow-discounts', array( $this, 'page_discounts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Abandoned Carts', 'checkoutflow' ), __( 'Abandoned Carts', 'checkoutflow' ), self::CAP, 'checkoutflow-carts', array( $this, 'page_carts' ) );
+		add_submenu_page( 'checkoutflow', __( 'Thank You Page', 'checkoutflow' ), __( 'Thank You Page', 'checkoutflow' ), self::CAP, 'checkoutflow-thankyou', array( $this, 'page_thankyou' ) );
 		add_submenu_page( 'checkoutflow', __( 'Settings', 'checkoutflow' ), __( 'Settings', 'checkoutflow' ), self::CAP, 'checkoutflow-settings', array( $this, 'page_settings' ) );
 		// Hidden: email editor.
 		$hook = add_submenu_page( '', __( 'Edit email', 'checkoutflow' ), '', self::CAP, 'checkoutflow-email', array( $this, 'page_email' ) );
@@ -82,6 +84,10 @@ class Admin {
 				'nonce' => wp_create_nonce( 'checkoutflow-admin' ),
 			)
 		);
+
+		if ( false !== strpos( $hook, 'checkoutflow-thankyou' ) ) {
+			$this->thankyou_builder_assets();
+		}
 
 		if ( false !== strpos( $hook, 'checkoutflow-email' ) ) {
 			wp_enqueue_media();
@@ -139,6 +145,99 @@ class Admin {
 				)
 			);
 		}
+	}
+
+	/**
+	 * The email builder's editor, configured with thank-you page blocks.
+	 */
+	private function thankyou_builder_assets() {
+		wp_enqueue_media();
+		list( $bcss, $ver ) = \CheckoutFlow\asset( 'css/builder.css' );
+		wp_enqueue_style( 'checkoutflow-builder', $bcss, array(), $ver );
+		list( $bjs, $ver ) = \CheckoutFlow\asset( 'js/builder.js' );
+		wp_enqueue_script( 'checkoutflow-builder', $bjs, array( 'checkoutflow-admin' ), $ver, true );
+		$types = array();
+		foreach ( Thank_You::types() as $key => $t ) {
+			$types[ $key ] = array(
+				'label'   => $t['label'],
+				'props'   => $t['props'],
+				'dynamic' => ! empty( $t['dynamic'] ),
+				'options' => array_merge( array( 'align' => Thank_You::block_types()['_align'] ), isset( $t['options'] ) ? $t['options'] : array() ),
+			);
+		}
+		wp_localize_script(
+			'checkoutflow-builder',
+			'checkoutflowBuilder',
+			array(
+				'types'         => $types,
+				'mergeTags'     => Thank_You::merge_tags(),
+				'canHtml'       => current_user_can( 'unfiltered_html' ),
+				'previewAction' => 'cf_ty_preview',
+				'noFallback'    => true,
+				'globals'       => array( array( 'page_bg', 'color' ), array( 'card_bg', 'color' ), array( 'accent', 'color' ), array( 'text_color', 'color' ), array( 'width', 'number' ) ),
+				'i18n'          => array(
+					'moveUp'      => __( 'Move up', 'checkoutflow' ),
+					'moveDown'    => __( 'Move down', 'checkoutflow' ),
+					'duplicate'   => __( 'Duplicate', 'checkoutflow' ),
+					'remove'      => __( 'Delete', 'checkoutflow' ),
+					'chooseImage' => __( 'Choose image', 'checkoutflow' ),
+					'linkPrompt'  => __( 'Link URL (tags like {shop_url} work too):', 'checkoutflow' ),
+					'copied'      => __( 'Copied!', 'checkoutflow' ),
+					'empty'       => __( 'Drag blocks here from the palette, or click a block to add it.', 'checkoutflow' ),
+					'dynamic'     => __( 'Filled in from the customer\'s order.', 'checkoutflow' ),
+					'labels'      => array(
+						'text'         => __( 'Text', 'checkoutflow' ),
+						'html'         => __( 'Content', 'checkoutflow' ),
+						'size'         => __( 'Font size (px)', 'checkoutflow' ),
+						'align'        => __( 'Alignment', 'checkoutflow' ),
+						'url'          => __( 'Link URL', 'checkoutflow' ),
+						'color'        => __( 'Color (empty = default)', 'checkoutflow' ),
+						'src'          => __( 'Image URL', 'checkoutflow' ),
+						'alt'          => __( 'Alt text', 'checkoutflow' ),
+						'width'        => __( 'Width', 'checkoutflow' ),
+						'height'       => __( 'Height (px)', 'checkoutflow' ),
+						'title'        => __( 'Title', 'checkoutflow' ),
+						'email'        => __( 'Support email', 'checkoutflow' ),
+						'phone'        => __( 'Support phone', 'checkoutflow' ),
+						'billing'      => __( 'Billing address', 'checkoutflow' ),
+						'show_contact' => __( 'Show email and phone', 'checkoutflow' ),
+						'show_images'  => __( 'Show product images', 'checkoutflow' ),
+						'show_totals'  => __( 'Show totals', 'checkoutflow' ),
+						'show_date'    => __( 'Show date', 'checkoutflow' ),
+						'show_total'   => __( 'Show total', 'checkoutflow' ),
+						'show_payment' => __( 'Show payment method', 'checkoutflow' ),
+						'show_email'   => __( 'Show email', 'checkoutflow' ),
+						'page_bg'      => __( 'Page background', 'checkoutflow' ),
+						'card_bg'      => __( 'Card background', 'checkoutflow' ),
+						'accent'       => __( 'Buttons & icons', 'checkoutflow' ),
+						'text_color'   => __( 'Text color', 'checkoutflow' ),
+					),
+				),
+			)
+		);
+	}
+
+	public function page_thankyou() {
+		$this->view( 'thankyou-builder', array( 'design' => Thank_You::design() ) );
+	}
+
+	public function post_save_thankyou() {
+		self::check( 'cf_save_thankyou' );
+		if ( ! empty( $_POST['reset'] ) ) {
+			delete_option( Thank_You::OPTION );
+			self::redirect( self::url( 'thankyou' ), __( 'Thank-you page reset to the default layout.', 'checkoutflow' ) );
+		}
+		Thank_You::save( json_decode( isset( $_POST['design'] ) ? wp_unslash( $_POST['design'] ) : '', true ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$values               = Settings::all();
+		$values['ty_enabled'] = ! empty( $_POST['ty_enabled'] );
+		Settings::save( $values );
+		self::redirect( self::url( 'thankyou' ), __( 'Thank-you page saved.', 'checkoutflow' ) );
+	}
+
+	public function ajax_ty_preview() {
+		self::ajax_check();
+		$design = Thank_You::sanitize( json_decode( isset( $_POST['design'] ) ? wp_unslash( $_POST['design'] ) : '', true ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		wp_send_json_success( array( 'html' => Thank_You::preview_document( $design ) ) );
 	}
 
 	private static function check( $nonce_action ) {

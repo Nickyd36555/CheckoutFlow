@@ -42,6 +42,7 @@ class Settings {
 		'cart_enabled'     => true,
 		'recovery_enabled' => true,
 		'optin_enabled'    => true,
+		'ty_enabled'       => true,
 		'smtp_enabled'     => false,
 		'smtp_all_mail'    => true,
 		'checkout_style'   => 'modern',
@@ -294,7 +295,7 @@ class Settings {
 		}
 
 		foreach ( $schema[ $tab ]['fields'] as $key => $field ) {
-			if ( 'heading' === $field['type'] ) {
+			if ( 'heading' === $field['type'] || 'link' === $field['type'] ) {
 				continue;
 			}
 			$raw = isset( $input[ $key ] ) ? wp_unslash( $input[ $key ] ) : null;
@@ -912,93 +913,17 @@ class Settings {
 		);
 
 		$thankyou = array(
-			'ty_enabled'        => array(
+			'ty_enabled' => array(
 				'type'    => 'checkbox',
 				'label'   => __( 'Use the CheckoutFlow thank-you page', 'checkoutflow' ),
 				'default' => true,
-				'desc'    => __( 'Restyles the WooCommerce "Order received" page to match the checkout. Payment-gateway boxes and tracking scripts on that page keep working.', 'checkoutflow' ),
+				'desc'    => __( 'Replaces the WooCommerce "Order received" page (and FunnelKit\'s thank-you page) with the one you design in the builder. Payment-gateway boxes and tracking scripts keep working.', 'checkoutflow' ),
 			),
-			'ty_heading'        => array(
-				'type'    => 'text',
-				'label'   => __( 'Heading', 'checkoutflow' ),
-				'default' => __( 'Thank you, {first_name}!', 'checkoutflow' ),
-				'desc'    => __( 'Tags: {first_name}, {order_number}, {email}, {total}.', 'checkoutflow' ),
-			),
-			'ty_subheading'     => array(
-				'type'    => 'text',
-				'label'   => __( 'Text under the heading', 'checkoutflow' ),
-				'default' => __( 'Your order #{order_number} has been received. A confirmation email is on its way to {email}.', 'checkoutflow' ),
-			),
-			'ty_show_overview'  => array(
-				'type'    => 'checkbox',
-				'label'   => __( 'Show order number, date, total and payment method', 'checkoutflow' ),
-				'default' => true,
-			),
-			'ty_show_images'    => array(
-				'type'    => 'checkbox',
-				'label'   => __( 'Show product images in the order details', 'checkoutflow' ),
-				'default' => true,
-			),
-			'ty_billing'        => array(
-				'type'    => 'select',
-				'label'   => __( 'Billing address', 'checkoutflow' ),
-				'options' => array(
-					'different' => __( 'Show only when different from shipping', 'checkoutflow' ),
-					'always'    => __( 'Always show', 'checkoutflow' ),
-					'never'     => __( 'Never show', 'checkoutflow' ),
-				),
-				'default' => 'different',
-			),
-			'ty_next_sec'       => array(
-				'type'  => 'heading',
-				'label' => __( 'What happens next', 'checkoutflow' ),
-			),
-			'ty_next_heading'   => array(
-				'type'    => 'text',
-				'label'   => __( 'Heading', 'checkoutflow' ),
-				'default' => __( 'What happens next', 'checkoutflow' ),
-			),
-			'ty_next_html'      => array(
-				'type'    => 'html',
-				'label'   => __( 'Text', 'checkoutflow' ),
-				'default' => '',
-				'rows'    => 6,
-				'desc'    => __( 'Basic HTML allowed. Leave empty to reuse the "Text under the order summary" from the Checkout tab.', 'checkoutflow' ),
-			),
-			'ty_support_html'   => array(
-				'type'    => 'html',
-				'label'   => __( 'Help / contact text', 'checkoutflow' ),
-				'default' => '',
-				'rows'    => 3,
-				'desc'    => __( 'E.g. "Questions? Email support@yourstore.com". Leave empty to hide.', 'checkoutflow' ),
-			),
-			'ty_buttons_sec'    => array(
-				'type'  => 'heading',
-				'label' => __( 'Buttons', 'checkoutflow' ),
-			),
-			'ty_button1_text'   => array(
-				'type'    => 'text',
-				'label'   => __( 'First button text', 'checkoutflow' ),
-				'default' => __( 'Track your order', 'checkoutflow' ),
-				'desc'    => __( 'Leave empty to hide.', 'checkoutflow' ),
-			),
-			'ty_button1_url'    => array(
-				'type'    => 'url',
-				'label'   => __( 'First button link', 'checkoutflow' ),
-				'default' => '',
-				'desc'    => __( 'Leave empty to use your "track-your-order" page, or the customer\'s account orders when there is none.', 'checkoutflow' ),
-			),
-			'ty_button2_text'   => array(
-				'type'    => 'text',
-				'label'   => __( 'Second button text', 'checkoutflow' ),
-				'default' => __( 'Continue shopping', 'checkoutflow' ),
-				'desc'    => __( 'Leave empty to hide.', 'checkoutflow' ),
-			),
-			'ty_button2_url'    => array(
-				'type'    => 'url',
-				'label'   => __( 'Second button link', 'checkoutflow' ),
-				'default' => '',
-				'desc'    => __( 'Leave empty to use the side cart\'s "Continue shopping" link.', 'checkoutflow' ),
+			'ty_builder' => array(
+				'type'  => 'link',
+				'label' => __( 'Page layout', 'checkoutflow' ),
+				'text'  => __( 'Open the thank-you page builder', 'checkoutflow' ),
+				'url'   => admin_url( 'admin.php?page=checkoutflow-thankyou' ),
 			),
 		);
 
