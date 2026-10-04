@@ -27,6 +27,18 @@ $values = Settings::all();
 	<input type="hidden" name="tab" value="<?php echo esc_attr( $tab ); ?>">
 	<?php wp_nonce_field( 'cf_save_settings' ); ?>
 
+	<?php
+	$cf_other = 'email' === $tab ? \CheckoutFlow\Mail\SMTP::other_mailer() : '';
+	if ( $cf_other ) :
+		?>
+		<div class="notice notice-warning inline"><p>
+			<?php
+			/* translators: %s: plugin name */
+			echo esc_html( sprintf( __( '%s is also handling email on this site and may send through its own connection, bypassing the SMTP settings below. Your test email and CheckoutFlow emails would then show up under that plugin\'s account or channel. Either keep "Send email through SMTP" off and let %s deliver everything, or deactivate %s to use the settings below.', 'checkoutflow' ), $cf_other, $cf_other, $cf_other ) );
+			?>
+		</p></div>
+	<?php endif; ?>
+
 	<table class="form-table" role="presentation">
 		<?php
 		foreach ( $tabs[ $tab ]['fields'] as $key => $f ) :

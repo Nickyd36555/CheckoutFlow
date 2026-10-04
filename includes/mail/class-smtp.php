@@ -79,6 +79,34 @@ class SMTP {
 		// phpcs:enable
 	}
 
+	/**
+	 * Another plugin that sends WordPress email its own way (an API mailer or a
+	 * replaced wp_mail()), which bypasses these SMTP settings.
+	 *
+	 * @return string Plugin name, or '' when none is detected.
+	 */
+	public static function other_mailer() {
+		if ( function_exists( 'wp_mail_smtp' ) ) {
+			return 'WP Mail SMTP';
+		}
+		if ( defined( 'FLUENTMAIL' ) || defined( 'FLUENTMAIL_PLUGIN_FILE' ) ) {
+			return 'FluentSMTP';
+		}
+		if ( class_exists( 'PostmanWpMail' ) || defined( 'POST_SMTP_VER' ) ) {
+			return 'Post SMTP';
+		}
+		if ( class_exists( 'EasyWPSMTP' ) || defined( 'EasyWPSMTP_PLUGIN_VERSION' ) ) {
+			return 'Easy WP SMTP';
+		}
+		if ( function_exists( 'wp_mail' ) ) {
+			$file = wp_normalize_path( (string) ( new \ReflectionFunction( 'wp_mail' ) )->getFileName() );
+			if ( false === strpos( $file, wp_normalize_path( ABSPATH . WPINC ) ) && preg_match( '#/(?:mu-)?plugins/([^/]+)#', $file, $m ) ) {
+				return $m[1];
+			}
+		}
+		return '';
+	}
+
 	public static function from_email( $email ) {
 		$from = Settings::get( 'from_email' );
 		return is_email( $from ) ? $from : $email;

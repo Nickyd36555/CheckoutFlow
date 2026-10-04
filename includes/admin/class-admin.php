@@ -587,6 +587,11 @@ class Admin {
 		$sent = Settings::get( 'smtp_enabled' )
 			? __( 'Test email accepted by your SMTP server. Check your inbox (and spam folder).', 'checkoutflow' )
 			: __( 'Test email handed to WordPress\'s default mail (CheckoutFlow SMTP is off). If it doesn\'t arrive, no SMTP plugin is delivering it: turn on "Send email through SMTP" above.', 'checkoutflow' );
+		$other = SMTP::other_mailer();
+		if ( $other ) {
+			/* translators: %s: plugin name */
+			$sent = sprintf( __( 'Test email sent, but %s is also handling email and may have delivered it through its own connection instead of the SMTP settings here. Check that plugin\'s email log, or your provider\'s reports for its account.', 'checkoutflow' ), $other );
+		}
 		$msg  = $ok ? $sent : '!' . sprintf( __( 'Sending failed: %s', 'checkoutflow' ), SMTP::last_error() ? SMTP::last_error() : __( 'unknown error', 'checkoutflow' ) );
 		self::redirect( self::url( 'settings', array( 'tab' => 'email' ) ), $msg );
 	}
