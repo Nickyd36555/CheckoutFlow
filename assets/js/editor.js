@@ -429,29 +429,56 @@
 				box.classList.add( 'is-busy' );
 				msg.className = 'cfx-ai-msg';
 				msg.textContent = T.aiWorking || 'Writing your email… this usually takes 20–60 seconds.';
-				post( B.ai.action, {
+				var fail = function ( m ) {
+					busy = false;
+					go.disabled = false;
+					box.classList.remove( 'is-busy' );
+					msg.className = 'cfx-ai-msg is-error';
+					msg.textContent = m || T.aiFailed || 'Something went wrong. Please try again.';
+				};
+				var started = Date.now();
+				var ranHere = false;
+				var poll = function ( job ) {
+					var data = { job: job };
+					// The background request never picked it up (host blocks loopbacks): run it in this request.
+					if ( ! ranHere && Date.now() - started > 12000 ) {
+						ranHere = true;
+						data.run = '1';
+					}
+					aiPost( 'cf_ai_status', data ).then( function ( r ) {
+						if ( ! r.success ) {
+							return fail( r.data && r.data.message );
+						}
+						if ( r.data.status !== 'done' ) {
+							if ( Date.now() - started > 240000 ) {
+								return fail( T.aiTimeout || 'The AI took too long to answer. Please try again.' );
+							}
+							return setTimeout( function () {
+								poll( job );
+							}, 3000 );
+						}
+						busy = false;
+						go.disabled = false;
+						box.classList.remove( 'is-busy' );
+						applyAI( r.data.email, mode );
+						aiBrief = '';
+						close();
+					} ).catch( function ( e ) {
+						fail( e && e.message );
+					} );
+				};
+				aiPost( B.ai.action, {
 					brief: text,
 					mode: mode,
 					subject: subject ? subject.value : '',
 					design: JSON.stringify( design )
 				} ).then( function ( r ) {
-					busy = false;
-					go.disabled = false;
-					box.classList.remove( 'is-busy' );
-					if ( ! r || ! r.success ) {
-						msg.className = 'cfx-ai-msg is-error';
-						msg.textContent = ( r && r.data && r.data.message ) || T.aiFailed || 'Something went wrong. Please try again.';
-						return;
+					if ( ! r.success ) {
+						return fail( r.data && r.data.message );
 					}
-					applyAI( r.data, mode );
-					aiBrief = '';
-					close();
-				} ).catch( function () {
-					busy = false;
-					go.disabled = false;
-					box.classList.remove( 'is-busy' );
-					msg.className = 'cfx-ai-msg is-error';
-					msg.textContent = T.aiFailed || 'Something went wrong. Please try again.';
+					poll( r.data.job );
+				} ).catch( function ( e ) {
+					fail( e && e.message );
 				} );
 			} );
 			brief.addEventListener( 'keydown', function ( e ) {
@@ -474,6 +501,25 @@
 			}
 		} );
 		root.appendChild( modal );
+	}
+
+	// Like post(), but turns a non-JSON reply (a host's timeout or error page) into a readable error.
+	function aiPost( action, data ) {
+		var fd = new FormData();
+		fd.append( 'action', action );
+		fd.append( 'nonce', A.nonce );
+		Object.keys( data ).forEach( function ( k ) {
+			fd.append( k, data[ k ] );
+		} );
+		return fetch( A.ajax, { method: 'POST', body: fd, credentials: 'same-origin' } ).then( function ( r ) {
+			return r.text().then( function ( body ) {
+				try {
+					return JSON.parse( body );
+				} catch ( e ) {
+					throw new Error( ( T.aiServer || 'The server returned an error' ) + ' (HTTP ' + r.status + ( r.status === 504 || r.status === 524 ? ', timed out' : '' ) + '). ' + ( body === '0' || body === '-1' ? 'Please reload the page and try again.' : '' ) );
+				}
+			} );
+		} );
 	}
 
 	function applyAI( out, mode ) {

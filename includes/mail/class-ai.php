@@ -23,6 +23,86 @@ class AI {
 	/** Block types the AI may use (dynamic, structural and raw-HTML blocks are left to people). */
 	const TYPES = array( 'heading', 'text', 'logo', 'list', 'button', 'image', 'divider', 'spacer', 'products', 'coupon', 'footer' );
 
+	/* ---------- background jobs ----------
+	 * A draft can take longer than a host's ~60s request limit, so the editor starts a
+	 * job, a loopback request runs it, and the editor polls for the result. */
+
+	const JOB = 'checkoutflow_ai_job_';
+
+	/**
+	 * @param array $args brief, current, mode.
+	 * @return string Job ID.
+	 */
+	public static function start_job( $args ) {
+		$id    = wp_generate_uuid4();
+		$token = wp_generate_password( 32, false );
+		set_transient(
+			self::JOB . $id,
+			array(
+				'status'  => 'pending',
+				'user'    => get_current_user_id(),
+				'token'   => wp_hash( $token ),
+				'args'    => $args,
+				'created' => time(),
+			),
+			HOUR_IN_SECONDS
+		);
+		wp_remote_post(
+			admin_url( 'admin-ajax.php' ),
+			array(
+				'blocking' => false,
+				'timeout'  => 1,
+				'body'     => array( 'action' => 'cf_ai_work', 'job' => $id, 'token' => $token ),
+				'cookies'  => array(),
+			)
+		);
+		return $id;
+	}
+
+	public static function job( $id ) {
+		$job = get_transient( self::JOB . sanitize_key( $id ) );
+		return is_array( $job ) ? $job : null;
+	}
+
+	/**
+	 * Run a pending job (from the loopback request, or the poller as a fallback).
+	 *
+	 * @param string $id Job ID.
+	 */
+	public static function run_job( $id ) {
+		$id  = sanitize_key( $id );
+		$job = self::job( $id );
+		if ( ! $job || 'pending' !== $job['status'] ) {
+			return;
+		}
+		$job['status'] = 'running';
+		set_transient( self::JOB . $id, $job, HOUR_IN_SECONDS );
+		if ( function_exists( 'ignore_user_abort' ) ) {
+			ignore_user_abort( true );
+		}
+		$out = self::generate( $job['args']['brief'], $job['args']['current'], $job['args']['mode'] );
+		$job['status'] = is_wp_error( $out ) ? 'error' : 'done';
+		$job['result'] = is_wp_error( $out ) ? array( 'message' => $out->get_error_message() ) : $out;
+		unset( $job['args'] );
+		set_transient( self::JOB . $id, $job, HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * Loopback worker: no login cookie, so it is authorised by the job's one-time token.
+	 */
+	public static function ajax_work() {
+		// phpcs:disable WordPress.Security.NonceVerification -- authorised by the job token.
+		$id    = isset( $_POST['job'] ) ? sanitize_key( wp_unslash( $_POST['job'] ) ) : '';
+		$token = isset( $_POST['token'] ) ? (string) wp_unslash( $_POST['token'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		// phpcs:enable
+		$job = self::job( $id );
+		if ( ! $job || '' === $token || ! hash_equals( $job['token'], wp_hash( $token ) ) ) {
+			wp_die( '', '', array( 'response' => 403 ) );
+		}
+		self::run_job( $id );
+		wp_die( '', '', array( 'response' => 200 ) );
+	}
+
 	public static function api_key() {
 		if ( defined( 'CHECKOUTFLOW_ANTHROPIC_API_KEY' ) ) {
 			return (string) CHECKOUTFLOW_ANTHROPIC_API_KEY;
@@ -174,7 +254,7 @@ class AI {
 			'system'        => self::system_prompt(),
 			'messages'      => array( array( 'role' => 'user', 'content' => $user ) ),
 			'output_config' => array(
-				'effort' => 'medium',
+				'effort' => 'low',
 				'format' => array( 'type' => 'json_schema', 'schema' => self::schema() ),
 			),
 			// If the request is declined on policy grounds, the API retries it on a fallback model.

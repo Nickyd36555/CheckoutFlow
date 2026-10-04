@@ -34,9 +34,11 @@ class Admin {
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
-		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave', 'ai_generate' ) as $action ) {
+		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave', 'ai_generate', 'ai_status' ) as $action ) {
 			add_action( 'wp_ajax_cf_' . $action, array( $this, 'ajax_' . $action ) );
 		}
+		add_action( 'wp_ajax_cf_ai_work', array( AI::class, 'ajax_work' ) );
+		add_action( 'wp_ajax_nopriv_cf_ai_work', array( AI::class, 'ajax_work' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( CHECKOUTFLOW_FILE ), array( $this, 'action_links' ) );
 	}
 
@@ -647,11 +649,37 @@ class Admin {
 		if ( '' === trim( $brief ) ) {
 			wp_send_json_error( array( 'message' => __( 'Describe the email you want first.', 'checkoutflow' ) ), 400 );
 		}
-		$out = AI::generate( $brief, array( 'subject' => $subj, 'blocks' => $cur['blocks'] ), $mode );
-		if ( is_wp_error( $out ) ) {
-			wp_send_json_error( array( 'message' => $out->get_error_message() ), 400 );
+		if ( ! AI::enabled() ) {
+			wp_send_json_error( array( 'message' => __( 'Add your Anthropic API key in CheckoutFlow → Settings → Email & SMTP to use the AI writer.', 'checkoutflow' ) ), 400 );
 		}
-		wp_send_json_success( $out );
+		$job = AI::start_job( array( 'brief' => $brief, 'current' => array( 'subject' => $subj, 'blocks' => $cur['blocks'] ), 'mode' => $mode ) );
+		wp_send_json_success( array( 'job' => $job ) );
+	}
+
+	/**
+	 * Poll a job. "run" lets the editor run it here if the loopback request never started
+	 * it (some hosts block requests to themselves).
+	 */
+	public function ajax_ai_status() {
+		self::ajax_check();
+		// phpcs:disable WordPress.Security.NonceVerification -- checked in ajax_check()
+		$id  = isset( $_POST['job'] ) ? sanitize_key( wp_unslash( $_POST['job'] ) ) : '';
+		$job = AI::job( $id );
+		if ( ! $job || (int) $job['user'] !== get_current_user_id() ) {
+			wp_send_json_error( array( 'message' => __( 'This AI request expired. Please try again.', 'checkoutflow' ) ), 404 );
+		}
+		if ( 'pending' === $job['status'] && ! empty( $_POST['run'] ) ) {
+			AI::run_job( $id );
+			$job = AI::job( $id );
+		}
+		// phpcs:enable
+		if ( 'done' === $job['status'] ) {
+			wp_send_json_success( array( 'status' => 'done', 'email' => $job['result'] ) );
+		}
+		if ( 'error' === $job['status'] ) {
+			wp_send_json_error( array( 'message' => $job['result']['message'] ), 400 );
+		}
+		wp_send_json_success( array( 'status' => $job['status'] ) );
 	}
 
 	public function ajax_ty_autosave() {
