@@ -513,11 +513,16 @@
 		} );
 		return fetch( A.ajax, { method: 'POST', body: fd, credentials: 'same-origin' } ).then( function ( r ) {
 			return r.text().then( function ( body ) {
+				var json;
 				try {
-					return JSON.parse( body );
+					json = JSON.parse( body );
 				} catch ( e ) {
-					throw new Error( ( T.aiServer || 'The server returned an error' ) + ' (HTTP ' + r.status + ( r.status === 504 || r.status === 524 ? ', timed out' : '' ) + '). ' + ( body === '0' || body === '-1' ? 'Please reload the page and try again.' : '' ) );
+					json = null;
 				}
+				if ( json && typeof json === 'object' ) {
+					return json;
+				}
+				throw new Error( ( T.aiServer || 'The server returned an error' ) + ' (HTTP ' + r.status + ( r.status === 504 || r.status === 524 ? ', timed out' : '' ) + '). ' + ( body === '0' || body === '-1' ? 'Please reload the page and try again.' : '' ) );
 			} );
 		} );
 	}
