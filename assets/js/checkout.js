@@ -268,7 +268,14 @@
 	/* ---------- store credit / add-ons above the payment methods: yellow stars, green amounts ---------- */
 
 	function decorateAddons() {
-		document.querySelectorAll( '.cf-before-payment' ).forEach( function ( box ) {
+		// The add-on box under "Payment Information", plus any summary row with stars (store credit).
+		var boxes = Array.prototype.slice.call( document.querySelectorAll( '.cf-before-payment' ) );
+		document.querySelectorAll( '.cf-totals tr, .cf-totals .cf-row' ).forEach( function ( row ) {
+			if ( /[★☆]/.test( row.textContent ) ) {
+				boxes.push( row );
+			}
+		} );
+		boxes.forEach( function ( box ) {
 			var walker = document.createTreeWalker( box, NodeFilter.SHOW_TEXT );
 			var nodes = [];
 			while ( walker.nextNode() ) {
