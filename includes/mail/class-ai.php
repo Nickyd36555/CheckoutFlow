@@ -250,7 +250,7 @@ class AI {
 
 		$body = array(
 			'model'         => self::model(),
-			'max_tokens'    => 16000,
+			'max_tokens'    => 8000,
 			'system'        => self::system_prompt(),
 			'messages'      => array( array( 'role' => 'user', 'content' => $user ) ),
 			'output_config' => array(
