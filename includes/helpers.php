@@ -150,9 +150,18 @@ function continue_shopping_url() {
 		$menu_id   = isset( $locations[ $target ] ) ? (int) $locations[ $target ] : 0;
 	}
 	if ( $menu_id ) {
+		$permalinks = (array) get_option( 'woocommerce_permalinks', array() );
+		$cat_base   = trim( ! empty( $permalinks['category_base'] ) ? $permalinks['category_base'] : 'product-category', '/' );
 		foreach ( (array) wp_get_nav_menu_items( $menu_id ) as $item ) {
-			if ( isset( $item->object ) && 'product_cat' === $item->object && ! empty( $item->url ) ) {
-				return $item->url;
+			if ( empty( $item->url ) ) {
+				continue;
+			}
+			// A category menu item, or a custom link to a category page (e.g. "/product-category/peptides/").
+			$is_cat = ( isset( $item->object ) && 'product_cat' === $item->object )
+				|| false !== strpos( $item->url, '/' . $cat_base . '/' )
+				|| false !== strpos( $item->url, 'product_cat=' );
+			if ( $is_cat ) {
+				return 0 === strpos( $item->url, '/' ) ? home_url( $item->url ) : $item->url;
 			}
 		}
 	}
