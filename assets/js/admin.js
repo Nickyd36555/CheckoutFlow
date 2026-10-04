@@ -86,3 +86,37 @@
 		} );
 	}
 } )();
+
+/* Dashboard chart: metric toggle and hover tooltip. */
+( function () {
+	document.querySelectorAll( '.cf-chart' ).forEach( function ( card ) {
+		var tip = card.querySelector( '.cf-tip' );
+		card.querySelectorAll( '.cf-seg button' ).forEach( function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				card.querySelectorAll( '.cf-seg button' ).forEach( function ( b ) {
+					b.classList.toggle( 'is-active', b === btn );
+				} );
+				card.querySelectorAll( '[data-plot]' ).forEach( function ( p ) {
+					p.hidden = p.getAttribute( 'data-plot' ) !== btn.getAttribute( 'data-show' );
+				} );
+			} );
+		} );
+		card.addEventListener( 'mousemove', function ( e ) {
+			var bar = e.target.closest && e.target.closest( '.cf-bar' );
+			if ( ! bar ) {
+				tip.hidden = true;
+				return;
+			}
+			var box = card.getBoundingClientRect();
+			var r = bar.getBoundingClientRect();
+			tip.textContent = bar.getAttribute( 'data-tip' );
+			tip.hidden = false;
+			var x = Math.min( Math.max( r.left + r.width / 2 - box.left, tip.offsetWidth / 2 ), box.width - tip.offsetWidth / 2 );
+			tip.style.left = x + 'px';
+			tip.style.top = ( e.clientY - box.top - 10 ) + 'px';
+		} );
+		card.addEventListener( 'mouseleave', function () {
+			tip.hidden = true;
+		} );
+	} );
+} )();

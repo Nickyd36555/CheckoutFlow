@@ -382,6 +382,7 @@ class Admin {
 	/* ---------- pages ---------- */
 
 	public function page_dashboard() {
+		require_once __DIR__ . '/class-analytics.php';
 		$this->view( 'dashboard' );
 	}
 

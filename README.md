@@ -131,6 +131,12 @@ Emails and the thank-you page are designed in the same full-screen editor:
 - Drag blocks onto the preview, drag a selected block by its handle to move it (also into or out of columns), and click a heading or text block to type in place. Every block has background and spacing settings.
 - Undo/redo (Ctrl+Z / Ctrl+Shift+Z), Delete to remove the selected block, Ctrl+S to save, desktop/mobile preview, send test. Changes autosave a few seconds after you stop editing.
 
+## Sales dashboard
+
+**CheckoutFlow → Dashboard** shows revenue, orders, average order, customers, email-driven and recovered-cart revenue for today, 7, 30 or 90 days, or 12 months, with the change against the previous period. A daily (or monthly) chart toggles between revenue and orders and can be shown as a table.
+
+Below it: recent conversions with where each order came from, and revenue by traffic source, UTM campaign and referring site. Source data comes from WooCommerce's built-in Order Attribution (WooCommerce 8.5+), which records UTM tags and referrers at checkout. Counts processing, completed and on-hold orders (filter `checkoutflow_analytics_statuses`). Figures are cached for 10 minutes.
+
 ## AI email writer
 
 The email editor has a **Write with AI** button. Describe the email ("weekend flash sale, 15% off with a coupon, feature our best sellers") and it writes the subject line, preview text and a full layout of normal, editable blocks. You can also add a section to an existing email. Undo restores what you had.
