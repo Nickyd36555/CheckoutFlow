@@ -204,6 +204,13 @@
 			request( 'cf_cart_remove_coupon', { code: t.dataset.code } ).then( function ( res ) {
 				announce( res, 'removed_from_cart' );
 			} );
+		} else if ( ( t = e.target.closest( '.cfc-up-nav' ) ) ) {
+			var track = t.parentNode.querySelector( '.cfc-up-track' );
+			var dir = t.classList.contains( 'is-prev' ) ? -1 : 1;
+			var max = track.scrollWidth - track.clientWidth;
+			// Wrap around at the ends.
+			var left = track.scrollLeft + dir * track.clientWidth;
+			track.scrollTo( { left: left > max + 2 ? 0 : left < -2 ? max : left, behavior: 'smooth' } );
 		} else if ( ( t = e.target.closest( '.cfc-add' ) ) ) {
 			t.disabled = true;
 			var fd = new FormData();

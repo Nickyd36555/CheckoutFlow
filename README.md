@@ -96,6 +96,12 @@ Rules are checked top to bottom. The first product rule that fits a line sets it
 
 Any tag accepts a fallback: `{first_name|there}`.
 
+## Side cart
+
+FunnelKit-style drawer: "Review Your Cart (n)", items with a remove button on the image, quantity steppers, struck-through prices with the % saved in green, a **Frequently Bought Together** slider, a collapsible discount-code field, coupon tags, totals and a checkout button.
+
+Recommendations (Settings → Side Cart) come from each product's **Upsells** and/or **Cross-sells** (Product data → Linked Products), plus optional default product IDs shown when nothing is linked (or always). FunnelKit Cart's upsell settings are imported once.
+
 ## Header cart icon
 
 Settings → Side Cart → **Add cart to menu**: pick your header menu location (on block themes, "Header navigation block"). It shows the cart icon, a red count badge and the cart total, and opens the side cart. On page builders (Elementor, Divi…) place the shortcode `[checkoutflow_cart_icon]` in the header instead (`total="no"` hides the amount).

@@ -91,12 +91,61 @@ class Settings {
 	 * One-time import of FunnelKit Cart's settings (they stay in the database after
 	 * FunnelKit is deactivated), so the header cart appears where it was without setup.
 	 */
+	/**
+	 * FunnelKit Cart's "Frequently Bought Together" settings (fkcart_settings).
+	 */
+	private static function import_funnelkit_upsells() {
+		// Untouched old defaults become the new (FunnelKit-style) ones.
+		$values = self::all();
+		$olds   = array(
+			'cart_heading'        => array( 'Your Cart', __( 'Review Your Cart', 'checkoutflow' ) ),
+			'cart_upsell_heading' => array( 'You may also like', __( 'Frequently Bought Together', 'checkoutflow' ) ),
+		);
+		foreach ( $olds as $key => $pair ) {
+			if ( isset( $values[ $key ] ) && $pair[0] === $values[ $key ] ) {
+				$values[ $key ] = $pair[1];
+			}
+		}
+		if ( isset( $values['cart_upsell_limit'] ) && 3 === (int) $values['cart_upsell_limit'] ) {
+			$values['cart_upsell_limit'] = 5;
+		}
+		self::save( $values );
+
+		$fk = get_option( 'fkcart_settings' );
+		if ( ! is_array( $fk ) || ! $fk ) {
+			return;
+		}
+		if ( isset( $fk['enable_upsells'] ) ) {
+			$values['cart_upsells'] = wc_string_to_bool( $fk['enable_upsells'] );
+		}
+		if ( ! empty( $fk['upsell_heading'] ) ) {
+			$values['cart_upsell_heading'] = sanitize_text_field( $fk['upsell_heading'] );
+		}
+		if ( ! empty( $fk['upsell_max_count'] ) ) {
+			$values['cart_upsell_limit'] = max( 1, min( 10, (int) $fk['upsell_max_count'] ) );
+		}
+		$types = array( 'both' => 'both', 'upsell' => 'upsell', 'upsells' => 'upsell', 'crosssell' => 'crosssell', 'cross_sell' => 'crosssell', 'crosssells' => 'crosssell' );
+		if ( ! empty( $fk['upsell_type'] ) && isset( $types[ $fk['upsell_type'] ] ) ) {
+			$values['cart_upsell_type'] = $types[ $fk['upsell_type'] ];
+		}
+		if ( isset( $fk['show_default_upsell'] ) ) {
+			$values['cart_upsell_always_defaults'] = wc_string_to_bool( $fk['show_default_upsell'] );
+		}
+		self::save( $values );
+	}
+
 	public static function import_funnelkit() {
 		$done = (int) get_option( 'checkoutflow_fk_imported' );
+		if ( $done >= 4 ) {
+			return;
+		}
+		update_option( 'checkoutflow_fk_imported', 4, false );
+
+		// Step 4: FunnelKit Cart upsell settings.
+		self::import_funnelkit_upsells();
 		if ( $done >= 3 ) {
 			return;
 		}
-		update_option( 'checkoutflow_fk_imported', 3, false );
 
 		// Step 3: FunnelKit checkout designs (Elementor) – banner, badges, notes, button.
 		if ( $done < 3 ) {
@@ -641,7 +690,7 @@ class Settings {
 			'cart_heading'              => array(
 				'type'    => 'text',
 				'label'   => __( 'Heading', 'checkoutflow' ),
-				'default' => __( 'Your Cart', 'checkoutflow' ),
+				'default' => __( 'Review Your Cart', 'checkoutflow' ),
 			),
 			'cart_show_coupon'          => array(
 				'type'    => 'checkbox',
@@ -705,17 +754,39 @@ class Settings {
 				'type'    => 'checkbox',
 				'label'   => __( 'Show product recommendations', 'checkoutflow' ),
 				'default' => true,
-				'desc'    => __( 'Uses the "Cross-sells" set on each product (Product data > Linked Products).', 'checkoutflow' ),
+				'desc'    => __( 'Uses the Upsells / Cross-sells set on each product (Product data > Linked Products).', 'checkoutflow' ),
+			),
+			'cart_upsell_type'          => array(
+				'type'    => 'select',
+				'label'   => __( 'Recommend', 'checkoutflow' ),
+				'options' => array(
+					'both'      => __( 'Upsells and cross-sells', 'checkoutflow' ),
+					'upsell'    => __( 'Upsells only', 'checkoutflow' ),
+					'crosssell' => __( 'Cross-sells only', 'checkoutflow' ),
+				),
+				'default' => 'both',
+			),
+			'cart_upsell_defaults'      => array(
+				'type'        => 'text',
+				'label'       => __( 'Default products', 'checkoutflow' ),
+				'default'     => '',
+				'placeholder' => '123, 456',
+				'desc'        => __( 'Product IDs (comma separated) shown when the cart has no linked products.', 'checkoutflow' ),
+			),
+			'cart_upsell_always_defaults' => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Always show default products', 'checkoutflow' ),
+				'default' => false,
 			),
 			'cart_upsell_heading'       => array(
 				'type'    => 'text',
 				'label'   => __( 'Recommendations heading', 'checkoutflow' ),
-				'default' => __( 'You may also like', 'checkoutflow' ),
+				'default' => __( 'Frequently Bought Together', 'checkoutflow' ),
 			),
 			'cart_upsell_limit'         => array(
 				'type'    => 'number',
 				'label'   => __( 'Max recommendations', 'checkoutflow' ),
-				'default' => 3,
+				'default' => 5,
 				'min'     => 1,
 				'max'     => 10,
 			),

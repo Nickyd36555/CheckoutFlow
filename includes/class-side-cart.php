@@ -215,8 +215,27 @@ class Side_Cart {
 			$in_cart[] = (int) $item['product_id'];
 		}
 
-		$ids = array_diff( array_map( 'intval', $cart->get_cross_sells() ), $in_cart );
-		$ids = apply_filters( 'checkoutflow_cart_recommendation_ids', array_values( $ids ), $cart );
+		$type = (string) Settings::get( 'cart_upsell_type' );
+		$ids  = array();
+		if ( 'crosssell' !== $type ) {
+			foreach ( $cart->get_cart() as $item ) {
+				$parent = wc_get_product( $item['product_id'] );
+				if ( $parent ) {
+					$ids = array_merge( $ids, $parent->get_upsell_ids() );
+				}
+			}
+		}
+		if ( 'upsell' !== $type ) {
+			$ids = array_merge( $ids, $cart->get_cross_sells() );
+		}
+		$defaults = array_filter( array_map( 'absint', preg_split( '/[\s,]+/', (string) Settings::get( 'cart_upsell_defaults' ) ) ) );
+		if ( Settings::get( 'cart_upsell_always_defaults' ) ) {
+			$ids = array_merge( $defaults, $ids );
+		} elseif ( ! array_diff( array_map( 'intval', $ids ), $in_cart ) ) {
+			$ids = $defaults;
+		}
+		$ids = array_values( array_diff( array_unique( array_map( 'intval', $ids ) ), $in_cart ) );
+		$ids = apply_filters( 'checkoutflow_cart_recommendation_ids', $ids, $cart );
 		$out = array();
 		foreach ( $ids as $id ) {
 			$product = wc_get_product( $id );
