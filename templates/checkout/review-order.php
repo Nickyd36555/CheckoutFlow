@@ -85,7 +85,7 @@ $cf_coupon = Settings::get( 'checkout_coupon' );
 			<?php endforeach; ?>
 
 			<?php foreach ( WC()->cart->get_fees() as $fee ) : ?>
-				<tr class="fee">
+				<tr class="fee<?php echo (float) $fee->amount < 0 ? ' cf-discount-fee' : ''; ?>">
 					<th><?php echo esc_html( $fee->name ); ?></th>
 					<td><?php wc_cart_totals_fee_html( $fee ); ?></td>
 				</tr>

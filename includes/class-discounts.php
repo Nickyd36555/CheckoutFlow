@@ -402,6 +402,11 @@ class Discounts {
 				continue;
 			}
 			$label = '' !== $rule['label'] ? $rule['label'] : ( '' !== $rule['title'] ? $rule['title'] : __( 'Discount', 'checkoutflow' ) );
+			// Show the tier reached, e.g. "Bulk Discount (10% off)".
+			if ( 'percent_decrease' === $tier['type'] && false === strpos( $label, '%' ) ) {
+				/* translators: 1: discount name, 2: percent */
+				$label = sprintf( __( '%1$s (%2$s%% off)', 'checkoutflow' ), $label, wc_format_localized_decimal( (float) $tier['value'] ) );
+			}
 			$cart->add_fee( $label, wc_format_decimal( $amount, wc_get_price_decimals() ), $amount > 0 && 'yes' === get_option( 'woocommerce_calc_taxes' ) );
 			break; // First applicable cart rule wins.
 		}
