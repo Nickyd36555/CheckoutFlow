@@ -26,6 +26,7 @@ defined( 'ABSPATH' ) || exit;
 	@media (max-width: 620px) {
 		.cf-container { width: 100% !important; }
 		.cf-container td { padding-left: 18px !important; padding-right: 18px !important; }
+		.cf-container td.cf-col { display: block !important; width: 100% !important; padding-left: 0 !important; padding-right: 0 !important; }
 	}
 </style>
 </head>
@@ -51,8 +52,11 @@ defined( 'ABSPATH' ) || exit;
 			<table role="presentation" class="cf-container" width="<?php echo (int) $s['width']; ?>" cellpadding="0" cellspacing="0" border="0" style="width:<?php echo (int) $s['width']; ?>px;max-width:100%;font-family:<?php echo esc_attr( $s['font'] ); ?>;">
 				<tr>
 					<td style="padding:20px 32px;text-align:center;font-size:12px;line-height:1.6;color:#6b7280;">
-						<?php echo $footer; // phpcs:ignore WordPress.Security.EscapeOutput -- kses'd + merge-tag escaped. ?>
-						<br><a href="<?php echo esc_url( $unsub ); ?>" style="color:#6b7280;text-decoration:underline;"><?php esc_html_e( 'Unsubscribe', 'checkoutflow' ); ?></a>
+						<?php if ( '' !== $footer ) : ?>
+							<?php echo $footer; // phpcs:ignore WordPress.Security.EscapeOutput -- kses'd + merge-tag escaped. ?>
+							<br>
+						<?php endif; ?>
+						<a href="<?php echo esc_url( $unsub ); ?>" style="color:#6b7280;text-decoration:underline;"><?php esc_html_e( 'Unsubscribe', 'checkoutflow' ); ?></a>
 					</td>
 				</tr>
 			</table>

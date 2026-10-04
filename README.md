@@ -106,9 +106,16 @@ Settings → Side Cart → **Add cart to menu**: pick your header menu location 
 
 **Settings → Design** sets the font, text size, text, heading and label colors, field border color, order summary background and corner rounding. These apply to the checkout, the thank-you page and the side cart. The **Custom CSS** box is loaded only on those pages; HTML tags are stripped when you save.
 
-## Email builder
+## Editor (emails and thank-you page)
 
-Drag blocks from the palette onto the email preview; a blue line shows where they'll land. Drag a block in the preview to move it, or click it to edit its settings. The block list on the left supports the same drag, move and duplicate actions.
+Emails and the thank-you page are designed in the same full-screen editor:
+
+- **Blocks**: heading, text, site logo, list, button, image, divider, spacer, menu, social, custom HTML, footer, plus WooCommerce blocks for emails (products, coupon, cart items, order items) and order blocks for the thank-you page.
+- **Structure**: rows with 1–4 columns (50/50, 33/67, 67/33, 3 or 4 across). Drag blocks into each column. Columns stack on phones.
+- **Layouts**: ready-made sections (header with logo and menu, hero, image + text, image grids, product showcase, coupon offer, footer).
+- **Templates**: starter emails (sale, newsletter, announcement with image grid, new product, abandoned cart, review request).
+- Drag blocks onto the preview, drag a selected block by its handle to move it (also into or out of columns), and click a heading or text block to type in place. Every block has background and spacing settings.
+- Undo/redo (Ctrl+Z / Ctrl+Shift+Z), Delete to remove the selected block, Ctrl+S to save, desktop/mobile preview, send test. Changes autosave a few seconds after you stop editing.
 
 ## Theme overrides
 

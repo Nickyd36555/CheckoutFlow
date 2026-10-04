@@ -1,0 +1,172 @@
+/* CheckoutFlow – full-screen editor */
+body.cfx-open { overflow: hidden; }
+.cfx {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	flex-direction: column;
+	background: #f1f3f5;
+	color: #1d2327;
+	font-size: 13px;
+}
+.cfx *, .cfx *::before, .cfx *::after { box-sizing: border-box; }
+
+/* Top bar */
+.cfx-top {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 60px;
+	padding: 8px 14px;
+	background: #fff;
+	border-bottom: 1px solid #dcdcde;
+}
+.cfx-back { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 6px; color: #1d2327; text-decoration: none; }
+.cfx-back:hover { background: #f0f0f1; color: #1d2327; }
+.cfx-title { display: flex; flex-direction: column; min-width: 240px; max-width: 460px; flex: 0 1 460px; }
+.cfx-title input { width: 100%; border: 1px solid transparent; border-radius: 4px; background: transparent; padding: 1px 6px; box-shadow: none; }
+.cfx-title input:hover:not(:disabled), .cfx-title input:focus { border-color: #c3c4c7; background: #fff; }
+.cfx-subject { font-size: 15px; font-weight: 600; }
+.cfx-preheader { font-size: 12px; color: #646970; }
+.cfx-page-title { font-size: 16px; }
+.cfx-status { color: #646970; font-style: italic; white-space: nowrap; }
+.cfx-spacer { flex: 1; }
+.cfx-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	background: transparent;
+	color: #3c434a;
+	cursor: pointer;
+}
+.cfx-icon-btn:hover:not(:disabled) { background: #f0f0f1; }
+.cfx-icon-btn:disabled { opacity: .35; cursor: default; }
+.cfx-icon-btn.is-active { background: #e7f0fa; border-color: #c5d9ed; color: #2271b1; }
+.cfx-devices { display: flex; gap: 2px; padding: 2px; border: 1px solid #dcdcde; border-radius: 8px; }
+.cfx-actions { display: flex; gap: 6px; align-items: center; }
+.cfx-locked { color: #996800; background: #fcf9e8; border: 1px solid #f0c33c; border-radius: 4px; padding: 4px 8px; }
+.cfx-popover {
+	position: absolute;
+	top: 100%;
+	right: 14px;
+	z-index: 5;
+	width: 340px;
+	margin-top: 6px;
+	padding: 14px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+}
+.cfx-popover label { display: block; font-weight: 600; margin-bottom: 6px; }
+.cfx-row { display: flex; gap: 6px; }
+.cfx-row input { flex: 1; }
+.cfx-test-out { margin: 8px 0 0; }
+.cfx-test-out.is-ok { color: #008a20; }
+.cfx-test-out.is-error { color: #d63638; }
+
+/* Main area */
+.cfx-main { flex: 1; display: flex; min-height: 0; }
+.cfx-side {
+	flex: 0 0 340px;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	background: #fff;
+	border-right: 1px solid #dcdcde;
+}
+.cfx-side-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.cfx-tabs { display: flex; gap: 4px; margin: 12px 12px 0; padding: 4px; background: #f0f0f1; border-radius: 8px; }
+.cfx-tab { flex: 1; padding: 8px 4px; border: 0; border-radius: 6px; background: transparent; color: #50575e; font-weight: 600; cursor: pointer; }
+.cfx-tab.is-active { background: #fff; color: #1d2327; box-shadow: 0 1px 2px rgba(0, 0, 0, .1); }
+.cfx-group { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: #50575e; }
+.cfx-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cfx-tile {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 78px;
+	padding: 10px 6px;
+	border: 1px dashed #c3c4c7;
+	border-radius: 8px;
+	background: #fff;
+	color: #3c434a;
+	font-size: 12px;
+	line-height: 1.2;
+	text-align: center;
+	cursor: grab;
+}
+.cfx-tile .dashicons { font-size: 22px; width: 22px; height: 22px; }
+.cfx-tile:hover, .cfx-tile.is-active { border-style: solid; border-color: #2271b1; color: #2271b1; }
+.cfx-tip { margin: 0; color: #646970; }
+.cfx-structures { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cfx-structures.is-compact { grid-template-columns: repeat(3, 1fr); }
+.cfx-structure { min-height: 64px; }
+.cfx-layout-preview { display: flex; gap: 3px; width: 100%; height: 26px; }
+.cfx-layout-preview i { display: block; background: #dbe5ef; border-radius: 3px; }
+.cfx-tile:hover .cfx-layout-preview i, .cfx-tile.is-active .cfx-layout-preview i { background: #9ec2e6; }
+.cfx-section-tile { flex-direction: row; justify-content: flex-start; min-height: 0; padding: 12px; font-size: 13px; text-align: left; }
+
+/* Settings */
+.cfx-settings { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.cfx-settings-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #f0f0f1; font-size: 14px; }
+.cfx-field { display: flex; flex-direction: column; gap: 4px; }
+.cfx-field > span { font-weight: 600; font-size: 12px; }
+.cfx-field input[type="text"], .cfx-field input[type="url"], .cfx-field input[type="number"], .cfx-field input[type="email"], .cfx-field select, .cfx-field textarea { width: 100%; max-width: none; }
+.cfx-field textarea.code { font-family: Menlo, Consolas, monospace; font-size: 12px; }
+.cfx-field .button { align-self: flex-start; margin-top: 4px; }
+.cfx-check { flex-direction: row; align-items: center; gap: 8px; }
+.cfx-check > span { font-weight: 500; }
+.cfx-help { color: #646970; }
+.cfx-color { display: flex; gap: 6px; align-items: center; }
+.cfx-color input[type="color"] { width: 40px; height: 32px; padding: 2px; flex: 0 0 auto; }
+.cfx-color .cfx-color-text { flex: 1; }
+.cfx-style { border-top: 1px solid #f0f0f1; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.cfx-style[open] { gap: 10px; }
+.cfx-style summary { cursor: pointer; font-weight: 600; }
+.cfx-style > :not(summary) { margin-top: 10px; }
+.cfx-block-actions { display: flex; gap: 6px; padding-top: 6px; border-top: 1px solid #f0f0f1; }
+.cfx-danger { color: #b32d2e !important; border-color: #e5a6a7 !important; }
+.cfx-toolbar { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; padding: 3px; border: 1px solid #dcdcde; border-bottom: 0; border-radius: 4px 4px 0 0; background: #f6f7f7; }
+.cfx-toolbar .cfx-icon-btn { width: 28px; height: 28px; }
+.cfx-tag-insert { margin-left: auto; max-width: 140px; font-size: 12px; min-height: 28px; }
+.cfx-rte { min-height: 110px; max-height: 300px; overflow-y: auto; padding: 8px 10px; border: 1px solid #dcdcde; border-radius: 0 0 4px 4px; background: #fff; font-size: 14px; line-height: 1.5; }
+.cfx-rte:focus { outline: 2px solid #2271b1; outline-offset: -1px; }
+.cfx-rte p { margin: 0 0 8px; }
+.cfx-tagref ul { margin: 8px 0 0; max-height: 260px; overflow-y: auto; }
+.cfx-tagref li { margin: 0 0 4px; }
+.cfx-tagref summary { cursor: pointer; font-weight: 600; }
+
+/* Canvas */
+.cfx-stage { position: relative; flex: 1; min-width: 0; overflow: hidden; display: flex; padding: 18px; }
+.cfx-frame-wrap { flex: 1; display: flex; justify-content: center; transition: padding .2s; }
+.cfx-frame { width: 100%; height: 100%; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: width .2s, opacity .2s; }
+.cfx-frame-wrap.is-mobile .cfx-frame { width: 390px; }
+.cfx-stage.is-loading .cfx-frame { opacity: .75; }
+
+/* Templates modal */
+.cfx-modal { position: absolute; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(0, 0, 0, .35); }
+.cfx-modal-box { width: min(920px, 100%); max-height: 100%; overflow-y: auto; padding: 18px 22px 22px; background: #fff; border-radius: 10px; }
+.cfx-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cfx-modal-head h2 { margin: 0; font-size: 18px; }
+.cfx-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.cfx-template { display: flex; flex-direction: column; gap: 6px; min-height: 110px; padding: 14px; border: 1px solid #dcdcde; border-radius: 8px; background: #fff; text-align: left; cursor: pointer; }
+.cfx-template:hover { border-color: #2271b1; box-shadow: 0 0 0 1px #2271b1; }
+.cfx-template strong { font-size: 14px; }
+.cfx-template span { color: #646970; }
+
+@media (max-width: 900px) {
+	.cfx-side { flex-basis: 280px; }
+	.cfx-title { min-width: 140px; }
+	.cfx-status { display: none; }
+}
+.cfx-toggle { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; font-weight: 600; white-space: nowrap; }

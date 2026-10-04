@@ -54,7 +54,7 @@ final class Plugin {
 		}
 
 		// Mail + marketing: cheap to load (hooks only); the heavy work runs in the cron tick.
-		foreach ( array( 'mail/class-smtp', 'mail/class-merge-tags', 'mail/class-renderer', 'mail/class-coupons', 'mail/class-queue', 'marketing/class-contacts', 'marketing/class-automations', 'marketing/class-campaigns', 'recovery/class-recovery' ) as $file ) {
+		foreach ( array( 'mail/class-smtp', 'mail/class-merge-tags', 'mail/class-renderer', 'mail/class-coupons', 'mail/class-templates', 'mail/class-queue', 'marketing/class-contacts', 'marketing/class-automations', 'marketing/class-campaigns', 'recovery/class-recovery' ) as $file ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/' . $file . '.php';
 		}
 		Mail\SMTP::init();

@@ -76,29 +76,35 @@ class Thank_You {
 		);
 		return array(
 			'heading'  => array(
+				'group' => 'general',
 				'label' => __( 'Heading', 'checkoutflow' ),
 				'props' => array( 'text' => __( 'Thank you for your order, {first_name}!', 'checkoutflow' ), 'size' => 30, 'align' => 'center', 'color' => '' ),
 			),
 			'text'     => array(
+				'group' => 'general',
 				'label' => __( 'Text', 'checkoutflow' ),
 				'props' => array( 'html' => '<p>' . __( 'Your text here.', 'checkoutflow' ) . '</p>', 'align' => 'left' ),
 			),
 			'overview' => array(
+				'group'   => 'order',
 				'label'   => __( 'Order summary cards', 'checkoutflow' ),
 				'dynamic' => true,
 				'props'   => array( 'show_date' => true, 'show_total' => true, 'show_payment' => true, 'show_email' => false ),
 			),
 			'items'    => array(
+				'group'   => 'order',
 				'label'   => __( 'Order items', 'checkoutflow' ),
 				'dynamic' => true,
 				'props'   => array( 'title' => __( 'Items', 'checkoutflow' ), 'show_images' => true, 'show_totals' => true ),
 			),
 			'payment'  => array(
+				'group'   => 'order',
 				'label'   => __( 'Payment instructions', 'checkoutflow' ),
 				'dynamic' => true,
 				'props'   => array( 'title' => '' ),
 			),
 			'customer' => array(
+				'group'   => 'order',
 				'label'   => __( 'Customer information', 'checkoutflow' ),
 				'dynamic' => true,
 				'props'   => array( 'title' => __( 'Information', 'checkoutflow' ), 'billing' => 'different', 'show_contact' => true ),
@@ -111,28 +117,39 @@ class Thank_You {
 				),
 			),
 			'support'  => array(
+				'group' => 'general',
 				'label' => __( 'Support bar', 'checkoutflow' ),
 				'props' => array( 'title' => __( 'For Support', 'checkoutflow' ), 'email' => get_option( 'woocommerce_email_from_address', get_option( 'admin_email' ) ), 'phone' => '' ),
 			),
 			'button'   => array(
+				'group' => 'general',
 				'label' => __( 'Button', 'checkoutflow' ),
 				'props' => array( 'text' => __( 'Continue shopping', 'checkoutflow' ), 'url' => '{shop_url}', 'align' => 'center', 'color' => '' ),
 			),
 			'image'    => array(
+				'group' => 'general',
 				'label' => __( 'Image', 'checkoutflow' ),
 				'props' => array( 'src' => '', 'alt' => '', 'url' => '', 'width' => 100, 'align' => 'center' ),
 			),
 			'divider'  => array(
+				'group' => 'general',
 				'label' => __( 'Divider', 'checkoutflow' ),
 				'props' => array( 'color' => '' ),
 			),
 			'spacer'   => array(
+				'group' => 'general',
 				'label' => __( 'Spacer', 'checkoutflow' ),
 				'props' => array( 'height' => 24 ),
 			),
 			'html'     => array(
+				'group' => 'general',
 				'label' => __( 'Custom HTML', 'checkoutflow' ),
 				'props' => array( 'html' => '' ),
+			),
+			'columns'  => array(
+				'group' => 'structure',
+				'label' => __( 'Columns', 'checkoutflow' ),
+				'props' => array( 'layout' => '50-50', 'cols' => array() ),
 			),
 		) + array( '_align' => $align ); // Shared select options (not a block).
 	}
@@ -144,6 +161,38 @@ class Thank_You {
 		$t = self::block_types();
 		unset( $t['_align'] );
 		return $t;
+	}
+
+	/**
+	 * Column layouts (percent widths); same keys as the email editor.
+	 */
+	public static function layouts() {
+		return array(
+			'100'         => array( 100 ),
+			'50-50'       => array( 50, 50 ),
+			'33-67'       => array( 33.33, 66.67 ),
+			'67-33'       => array( 66.67, 33.33 ),
+			'33-33-33'    => array( 33.33, 33.33, 33.34 ),
+			'25-25-25-25' => array( 25, 25, 25, 25 ),
+		);
+	}
+
+	private static function b( $type, $props = array() ) {
+		$t = self::types();
+		return array_merge( array( 'type' => $type ), $t[ $type ]['props'], $props );
+	}
+
+	/**
+	 * Ready-made sections for the editor's Layouts tab: key => [ label, blocks ].
+	 */
+	public static function sections() {
+		return array(
+			'hero'        => array( __( 'Thank-you heading + text', 'checkoutflow' ), array( self::b( 'heading', array( 'text' => __( 'Thank you, {first_name}!', 'checkoutflow' ) ) ), self::b( 'text', array( 'html' => '<p>' . __( 'Your order <strong>#{order_number}</strong> is confirmed. A confirmation email is on its way to <strong>{email}</strong>.', 'checkoutflow' ) . '</p>', 'align' => 'center' ) ) ) ),
+			'order_side'  => array( __( 'Items + customer side by side', 'checkoutflow' ), array( array( 'type' => 'columns', 'layout' => '50-50', 'cols' => array( array( self::b( 'items' ) ), array( self::b( 'customer' ) ) ) ) ) ),
+			'support_cta' => array( __( 'Support bar + button', 'checkoutflow' ), array( self::b( 'support' ), self::b( 'button' ) ) ),
+			'two_buttons' => array( __( 'Two buttons', 'checkoutflow' ), array( array( 'type' => 'columns', 'layout' => '50-50', 'cols' => array( array( self::b( 'button', array( 'text' => __( 'Track your order', 'checkoutflow' ), 'url' => '{track_url}', 'align' => 'right' ) ) ), array( self::b( 'button', array( 'align' => 'left' ) ) ) ) ) ) ),
+			'image_text'  => array( __( 'Image + text', 'checkoutflow' ), array( array( 'type' => 'columns', 'layout' => '33-67', 'cols' => array( array( self::b( 'image' ) ), array( self::b( 'text' ) ) ) ) ) ),
+		);
 	}
 
 	public static function default_settings() {
@@ -203,12 +252,27 @@ class Thank_You {
 			'width'      => max( 480, min( 1400, (int) $raw_s['width'] ) ),
 		);
 
+		$blocks = self::sanitize_blocks( isset( $design['blocks'] ) && is_array( $design['blocks'] ) ? $design['blocks'] : array(), $trusted, true );
+		return array( 'settings' => $settings, 'blocks' => $blocks );
+	}
+
+	private static function sanitize_blocks( $list, $trusted, $allow_cols ) {
 		$types   = self::types();
 		$options = self::block_types();
 		$blocks  = array();
-		foreach ( isset( $design['blocks'] ) && is_array( $design['blocks'] ) ? $design['blocks'] : array() as $block ) {
-			$type = isset( $block['type'] ) ? $block['type'] : '';
-			if ( ! isset( $types[ $type ] ) ) {
+		foreach ( $list as $block ) {
+			$type = is_array( $block ) && isset( $block['type'] ) ? $block['type'] : '';
+			if ( ! isset( $types[ $type ] ) || ( 'columns' === $type && ! $allow_cols ) ) {
+				continue;
+			}
+			if ( 'columns' === $type ) {
+				$layouts = self::layouts();
+				$layout  = isset( $block['layout'], $layouts[ $block['layout'] ] ) ? $block['layout'] : '50-50';
+				$cols    = array();
+				foreach ( array_keys( $layouts[ $layout ] ) as $c ) {
+					$cols[] = self::sanitize_blocks( isset( $block['cols'][ $c ] ) && is_array( $block['cols'][ $c ] ) ? $block['cols'][ $c ] : array(), $trusted, false );
+				}
+				$blocks[] = array_merge( array( 'type' => 'columns', 'layout' => $layout, 'cols' => $cols ), \CheckoutFlow\Mail\Renderer::sanitize_style( $block ) );
 				continue;
 			}
 			$b = array( 'type' => $type );
@@ -234,9 +298,9 @@ class Thank_You {
 					$b[ $key ] = sanitize_text_field( (string) $v );
 				}
 			}
-			$blocks[] = $b;
+			$blocks[] = array_merge( $b, \CheckoutFlow\Mail\Renderer::sanitize_style( $block ) );
 		}
-		return array( 'settings' => $settings, 'blocks' => $blocks );
+		return $blocks;
 	}
 
 	public static function save( $design ) {
@@ -313,38 +377,80 @@ class Thank_You {
 	 * @return string
 	 */
 	public static function render( $design, $order, $canvas = false ) {
-		$values  = self::tag_values( $order );
-		$out     = '';
-		$has_pay = false;
+		$values = self::tag_values( $order );
+		$flat   = self::flatten( $design['blocks'] );
+		$types  = wp_list_pluck( $flat, 'type' );
+
 		self::$cards_show_payment = (bool) array_filter(
-			$design['blocks'],
+			$flat,
 			static function ( $b ) {
 				return 'overview' === $b['type'] && ! empty( $b['show_payment'] );
 			}
 		);
-		foreach ( $design['blocks'] as $i => $b ) {
-			if ( 'payment' === $b['type'] ) {
-				$has_pay = true;
-			}
-			$html = self::block( $b, $order, $values, $canvas );
-			if ( $canvas && '' === $html ) {
-				$types = self::types();
-				$html  = '<div class="cf-tyb-empty">' . esc_html( $types[ $b['type'] ]['label'] ) . '</div>';
-			}
-			if ( '' === $html ) {
-				continue;
-			}
-			$out .= '<div class="cf-tyb cf-tyb--' . esc_attr( $b['type'] ) . '"' . ( $canvas ? ' data-cfb="' . (int) $i . '"' : '' ) . '>' . $html . '</div>';
-		}
+		$out = self::render_blocks( $design['blocks'], $order, $values, $canvas, '' );
 		// Payment instructions must never be lost (e.g. a crypto payment box): if the
-		// layout has no Payment block, show them after the opening heading/text.
-		if ( ! $has_pay && ! $canvas ) {
+		// layout has no Payment block, show them first.
+		if ( ! in_array( 'payment', $types, true ) && ! $canvas ) {
 			$pay = self::payment_html( $order, '' );
 			if ( '' !== $pay ) {
 				$out = '<div class="cf-tyb cf-tyb--payment">' . $pay . '</div>' . $out;
 			}
 		}
 		return '<div class="cf-tyb-page">' . $out . '</div>';
+	}
+
+	/**
+	 * All blocks, including those inside columns.
+	 */
+	private static function flatten( $blocks ) {
+		$out = array();
+		foreach ( $blocks as $b ) {
+			$out[] = $b;
+			if ( 'columns' === $b['type'] ) {
+				foreach ( (array) $b['cols'] as $col ) {
+					$out = array_merge( $out, self::flatten( $col ) );
+				}
+			}
+		}
+		return $out;
+	}
+
+	private static function render_blocks( $blocks, $order, $values, $canvas, $prefix ) {
+		$types = self::types();
+		$out   = '';
+		foreach ( $blocks as $i => $b ) {
+			$path = $prefix . $i;
+			if ( 'columns' === $b['type'] ) {
+				$html = self::columns_html( $b, $order, $values, $canvas, $path );
+			} else {
+				$html = self::block( $b, $order, $values, $canvas );
+			}
+			if ( '' === $html ) {
+				if ( ! $canvas ) {
+					continue;
+				}
+				$html = '<div class="cf-tyb-empty">' . esc_html( $types[ $b['type'] ]['label'] ) . '</div>';
+			}
+			$style = ( ! empty( $b['_bg'] ) ? 'background:' . $b['_bg'] . ';' : '' )
+				. ( isset( $b['_pt'] ) ? 'padding-top:' . (int) $b['_pt'] . 'px;' : '' )
+				. ( isset( $b['_pb'] ) ? 'padding-bottom:' . (int) $b['_pb'] . 'px;' : '' );
+			$out .= '<div class="cf-tyb cf-tyb--' . esc_attr( $b['type'] ) . '"' . ( $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . ( $canvas ? ' data-cfb="' . esc_attr( $path ) . '"' : '' ) . '>' . $html . '</div>';
+		}
+		return $out;
+	}
+
+	private static function columns_html( $b, $order, $values, $canvas, $path ) {
+		$layouts = self::layouts();
+		$widths  = isset( $layouts[ $b['layout'] ] ) ? $layouts[ $b['layout'] ] : $layouts['50-50'];
+		$html    = '';
+		foreach ( $widths as $c => $w ) {
+			$inner = self::render_blocks( isset( $b['cols'][ $c ] ) ? $b['cols'][ $c ] : array(), $order, $values, $canvas, $path . '.' . $c . '.' );
+			if ( '' === $inner && $canvas ) {
+				$inner = '<div class="cf-tyb-empty">' . esc_html__( 'Drop blocks here', 'checkoutflow' ) . '</div>';
+			}
+			$html .= '<div class="cf-tyb-col" style="flex:' . esc_attr( $w ) . ' 1 0"' . ( $canvas ? ' data-cfb-col="' . esc_attr( $path . '.' . $c ) . '"' : '' ) . '>' . $inner . '</div>';
+		}
+		return '<div class="cf-tyb-cols">' . $html . '</div>';
 	}
 
 	public static function inline_css( $design ) {
@@ -356,9 +462,15 @@ class Thank_You {
 		switch ( $b['type'] ) {
 			case 'heading':
 				$style = 'font-size:' . max( 14, min( 64, (int) $b['size'] ) ) . 'px;text-align:' . $b['align'] . ';' . ( $b['color'] ? 'color:' . $b['color'] . ';' : '' );
+				if ( $canvas ) {
+					return '<h1 class="cf-tyb-heading" data-cfb-edit="text" style="' . esc_attr( $style ) . '">' . esc_html( $b['text'] ) . '</h1>';
+				}
 				return '<h1 class="cf-tyb-heading" style="' . esc_attr( $style ) . '">' . self::merge( esc_html( $b['text'] ), $values ) . '</h1>';
 
 			case 'text':
+				if ( $canvas ) {
+					return '<div class="cf-tyb-text" data-cfb-edit="html" style="text-align:' . esc_attr( $b['align'] ) . '">' . wp_kses_post( $b['html'] ) . '</div>';
+				}
 				return '<div class="cf-tyb-text" style="text-align:' . esc_attr( $b['align'] ) . '">' . self::merge( wp_kses_post( $b['html'] ), $values ) . '</div>';
 
 			case 'overview':
