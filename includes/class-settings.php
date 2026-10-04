@@ -472,12 +472,6 @@ class Settings {
 			return self::$schema;
 		}
 
-		$field_states = array(
-			'optional' => __( 'Optional', 'checkoutflow' ),
-			'required' => __( 'Required', 'checkoutflow' ),
-			'hidden'   => __( 'Hidden', 'checkoutflow' ),
-		);
-
 		$checkout = array(
 			'checkout_enabled'       => array(
 				'type'    => 'checkbox',
@@ -581,40 +575,7 @@ class Settings {
 			'fields_heading'         => array(
 				'type'  => 'heading',
 				'label' => __( 'Checkout fields', 'checkoutflow' ),
-				'desc'  => __( 'Fewer fields means higher conversion. Hide what you do not need.', 'checkoutflow' ),
-			),
-			'field_billing_company'  => array(
-				'type'    => 'select',
-				'label'   => __( 'Company name', 'checkoutflow' ),
-				'options' => $field_states,
-				'default' => 'hidden',
-			),
-			'field_company_label'    => array(
-				'type'    => 'text',
-				'label'   => __( 'Company field label', 'checkoutflow' ),
-				'default' => '',
-				'desc'    => __( 'Rename the company field (e.g. "Lab Name"). Leave empty for the default.', 'checkoutflow' ),
-			),
-			'field_billing_address_2' => array(
-				'type'    => 'select',
-				'label'   => __( 'Address line 2', 'checkoutflow' ),
-				'options' => $field_states,
-				'default' => 'optional',
-			),
-			'field_billing_phone'    => array(
-				'type'    => 'select',
-				'label'   => __( 'Phone', 'checkoutflow' ),
-				'options' => $field_states,
-				'default' => 'optional',
-			),
-			'field_order_comments'   => array(
-				'type'    => 'select',
-				'label'   => __( 'Order notes', 'checkoutflow' ),
-				'options' => array(
-					'optional' => __( 'Shown', 'checkoutflow' ),
-					'hidden'   => __( 'Hidden', 'checkoutflow' ),
-				),
-				'default' => 'hidden',
+				'desc'  => __( 'Rename, reorder, require or hide fields, and add your own (e.g. date of birth) in CheckoutFlow → Checkout Fields.', 'checkoutflow' ),
 			),
 			'checkout_email_first'   => array(
 				'type'    => 'checkbox',

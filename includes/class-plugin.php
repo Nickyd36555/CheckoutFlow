@@ -43,7 +43,9 @@ final class Plugin {
 
 		if ( Settings::flag( 'checkout_enabled' ) ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout.php';
+			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout-fields.php';
 			new Checkout();
+			new Checkout_Fields();
 			if ( Settings::flag( 'ty_enabled' ) ) {
 				// Funnel plugins (FunnelKit) redirect to their own thank-you page; use ours instead.
 				add_filter( 'woocommerce_get_checkout_order_received_url', array( 'CheckoutFlow\\Thank_You', 'own_received_url' ), 1000, 2 );

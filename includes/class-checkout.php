@@ -380,36 +380,7 @@ class Checkout {
 	 * @return array
 	 */
 	public function fields( $fields ) {
-		$map = array(
-			'field_billing_company'   => array( 'billing_company', 'shipping_company' ),
-			'field_billing_address_2' => array( 'billing_address_2', 'shipping_address_2' ),
-			'field_billing_phone'     => array( 'billing_phone' ),
-		);
-
-		foreach ( $map as $setting => $keys ) {
-			$state = Settings::get( $setting );
-			foreach ( $keys as $key ) {
-				$group = strtok( $key, '_' );
-				if ( ! isset( $fields[ $group ][ $key ] ) ) {
-					continue;
-				}
-				if ( 'hidden' === $state ) {
-					unset( $fields[ $group ][ $key ] );
-				} else {
-					$fields[ $group ][ $key ]['required'] = ( 'required' === $state );
-				}
-			}
-		}
-
-		$company_label = (string) Settings::get( 'field_company_label' );
-		if ( '' !== $company_label ) {
-			foreach ( array( 'billing', 'shipping' ) as $group ) {
-				if ( isset( $fields[ $group ][ $group . '_company' ] ) ) {
-					$fields[ $group ][ $group . '_company' ]['label'] = $company_label;
-				}
-			}
-		}
-
+		// Labels, visibility and custom fields are handled by Checkout_Fields (priority 30).
 		if ( Settings::get( 'checkout_email_first' ) && isset( $fields['billing']['billing_email'] ) ) {
 			$fields['billing']['billing_email']['priority'] = 1;
 			$fields['billing']['billing_email']['class']    = array( 'form-row-wide' );
@@ -426,7 +397,24 @@ class Checkout {
 	}
 
 	public function order_notes_enabled( $enabled ) {
-		return 'hidden' === Settings::get( 'field_order_comments' ) ? false : $enabled;
+		// The "order" group also carries custom fields, so it renders when either is in use;
+		// a hidden notes field is removed by Checkout_Fields.
+		$notes = null;
+		foreach ( Checkout_Fields::config()['fields'] as $f ) {
+			if ( 'order_comments' === $f['key'] ) {
+				$notes = $f['enabled'];
+			}
+		}
+		return ( null === $notes ? $enabled : $notes ) || (bool) Checkout_Fields::custom_inputs() || self::has_custom_text();
+	}
+
+	private static function has_custom_text() {
+		foreach ( Checkout_Fields::config()['fields'] as $f ) {
+			if ( $f['custom'] && $f['enabled'] && 'paragraph' === $f['type'] ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

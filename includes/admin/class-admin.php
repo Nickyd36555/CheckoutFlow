@@ -30,7 +30,7 @@ class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 
-		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'reco_rebuild', 'reco_add_rule', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
+		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'reco_rebuild', 'reco_add_rule', 'save_fields', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
@@ -60,6 +60,7 @@ class Admin {
 		add_submenu_page( 'checkoutflow', __( 'Discounts', 'checkoutflow' ), __( 'Discounts', 'checkoutflow' ), self::CAP, 'checkoutflow-discounts', array( $this, 'page_discounts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Upsells', 'checkoutflow' ), __( 'Upsells', 'checkoutflow' ), self::CAP, 'checkoutflow-upsells', array( $this, 'page_upsells' ) );
 		add_submenu_page( 'checkoutflow', __( 'Abandoned Carts', 'checkoutflow' ), __( 'Abandoned Carts', 'checkoutflow' ), self::CAP, 'checkoutflow-carts', array( $this, 'page_carts' ) );
+		add_submenu_page( 'checkoutflow', __( 'Checkout Fields', 'checkoutflow' ), __( 'Checkout Fields', 'checkoutflow' ), self::CAP, 'checkoutflow-fields', array( $this, 'page_fields' ) );
 		add_submenu_page( 'checkoutflow', __( 'Thank You Page', 'checkoutflow' ), __( 'Thank You Page', 'checkoutflow' ), self::CAP, 'checkoutflow-thankyou', array( $this, 'page_thankyou' ) );
 		add_submenu_page( 'checkoutflow', __( 'Settings', 'checkoutflow' ), __( 'Settings', 'checkoutflow' ), self::CAP, 'checkoutflow-settings', array( $this, 'page_settings' ) );
 		// Hidden: email editor.
@@ -90,6 +91,12 @@ class Admin {
 			)
 		);
 
+		if ( false !== strpos( $hook, 'checkoutflow-fields' ) ) {
+			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout-fields.php';
+			list( $fjs, $fver ) = \CheckoutFlow\asset( 'js/fields.js' );
+			wp_enqueue_script( 'checkoutflow-fields', $fjs, array(), $fver, true );
+			wp_localize_script( 'checkoutflow-fields', 'checkoutflowFields', self::fields_config() );
+		}
 		if ( false !== strpos( $hook, 'checkoutflow-thankyou' ) ) {
 			$this->editor_assets( $this->thankyou_editor_config() );
 		} elseif ( false !== strpos( $hook, 'checkoutflow-email' ) ) {
@@ -318,6 +325,56 @@ class Admin {
 		self::redirect( self::url( 'upsells' ), sprintf( __( 'Analyzed %s orders.', 'checkoutflow' ), number_format_i18n( isset( $meta['orders'] ) ? $meta['orders'] : 0 ) ) );
 	}
 
+	private static function fields_config() {
+		$orig = \CheckoutFlow\Checkout_Fields::originals();
+		$defaults = array( 'email' => $orig['email']['label'], 'order_comments' => $orig['order_comments']['label'] );
+		foreach ( $orig['address'] as $k => $f ) {
+			$defaults[ $k ] = isset( $f['label'] ) ? wp_strip_all_tags( $f['label'] ) : $k;
+		}
+		return array(
+			'config'   => \CheckoutFlow\Checkout_Fields::config(),
+			'defaults' => $defaults,
+			'locked'   => \CheckoutFlow\Checkout_Fields::LOCKED,
+			'builtin'  => array(
+				'contact' => __( 'Contact Information', 'checkoutflow' ),
+				'address' => __( 'Address', 'checkoutflow' ),
+				'notes'   => __( 'Additional information', 'checkoutflow' ),
+			),
+			'positions' => array(
+				'after_contact'  => __( 'After Contact Information', 'checkoutflow' ),
+				'after_address'  => __( 'After the address', 'checkoutflow' ),
+				'before_payment' => __( 'Before Payment', 'checkoutflow' ),
+			),
+			'types'    => array(
+				'text'      => __( 'Text', 'checkoutflow' ),
+				'textarea'  => __( 'Paragraph text', 'checkoutflow' ),
+				'email'     => __( 'Email', 'checkoutflow' ),
+				'tel'       => __( 'Phone', 'checkoutflow' ),
+				'number'    => __( 'Number', 'checkoutflow' ),
+				'date'      => __( 'Date (e.g. date of birth)', 'checkoutflow' ),
+				'select'    => __( 'Dropdown', 'checkoutflow' ),
+				'radio'     => __( 'Radio buttons', 'checkoutflow' ),
+				'checkbox'  => __( 'Checkbox (e.g. "I agree…")', 'checkoutflow' ),
+				'paragraph' => __( 'Text only (no input)', 'checkoutflow' ),
+			),
+		);
+	}
+
+	public function post_save_fields() {
+		self::check( 'cf_save_fields' );
+		require_once CHECKOUTFLOW_DIR . 'includes/class-checkout-fields.php';
+		if ( ! empty( $_POST['reset'] ) ) {
+			delete_option( \CheckoutFlow\Checkout_Fields::OPTION );
+			self::redirect( self::url( 'fields' ), __( 'Checkout fields reset to WooCommerce defaults.', 'checkoutflow' ) );
+		}
+		$raw = json_decode( isset( $_POST['config'] ) ? wp_unslash( $_POST['config'] ) : '', true ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		if ( ! is_array( $raw ) ) {
+			self::redirect( self::url( 'fields' ), '!' . __( 'Nothing to save.', 'checkoutflow' ) );
+		}
+		\CheckoutFlow\Checkout_Fields::save_config( $raw );
+		self::redirect( self::url( 'fields' ), __( 'Checkout fields saved.', 'checkoutflow' ) );
+	}
+
 	public function post_reco_add_rule() {
 		self::check( 'cf_reco_add_rule' );
 		$a = isset( $_POST['a'] ) ? wc_get_product( absint( $_POST['a'] ) ) : null;
@@ -382,6 +439,10 @@ class Admin {
 	}
 
 	/* ---------- pages ---------- */
+
+	public function page_fields() {
+		$this->view( 'checkout-fields' );
+	}
 
 	public function page_dashboard() {
 		require_once __DIR__ . '/class-analytics.php';

@@ -131,6 +131,17 @@ Emails and the thank-you page are designed in the same full-screen editor:
 - Drag blocks onto the preview, drag a selected block by its handle to move it (also into or out of columns), and click a heading or text block to type in place. Every block has background and spacing settings.
 - Undo/redo (Ctrl+Z / Ctrl+Shift+Z), Delete to remove the selected block, Ctrl+S to save, desktop/mobile preview, send test. Changes autosave a few seconds after you stop editing.
 
+## Checkout fields
+
+**CheckoutFlow → Checkout Fields** edits the checkout form:
+
+- Rename, reorder (drag), resize (full/half width), require or hide WooCommerce's fields. Address fields apply to both the shipping and billing address; email and country can't be hidden.
+- Add your own fields: text, paragraph text, email, phone, number, date (with an optional minimum age, e.g. date of birth 21+), dropdown, radio buttons, checkbox (e.g. "I agree…"), or a text-only block (no input, e.g. a disclaimer).
+- Put them in Contact Information, the address section, Additional information, or new sections placed after Contact, after the address, or before Payment.
+- Answers are saved on the order (meta `_cf_<key>`, plus a labelled snapshot in `_checkoutflow_fields`) and shown on the order screen, in order emails and on the thank-you page.
+
+The older Company / Address line 2 / Phone / Order notes settings are carried over the first time the editor opens.
+
 ## Sales dashboard
 
 **CheckoutFlow → Dashboard** shows revenue, orders, average order, customers, email-driven and recovered-cart revenue for today, 7, 30 or 90 days, or 12 months, with the change against the previous period. A daily (or monthly) chart toggles between revenue and orders and can be shown as a table.

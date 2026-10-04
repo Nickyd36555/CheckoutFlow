@@ -12,6 +12,7 @@
 
 use CheckoutFlow\Settings;
 use CheckoutFlow\Checkout;
+use CheckoutFlow\Checkout_Fields;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -48,6 +49,28 @@ $cf_render = static function ( $fields ) use ( $checkout ) {
 };
 $cf_different_billing = false;
 
+// Custom fields and text blocks (CheckoutFlow → Checkout Fields) ride in the "order" group,
+// tagged with the section they belong to.
+$cf_by_section = Checkout_Fields::split( $checkout->get_checkout_fields( 'order' ) );
+$cf_in         = static function ( $section ) use ( $cf_by_section ) {
+	return isset( $cf_by_section[ $section ] ) ? $cf_by_section[ $section ] : array();
+};
+$cf_sections   = static function ( $position ) use ( $cf_in, $cf_render ) {
+	foreach ( Checkout_Fields::sections_at( $position ) as $sec ) {
+		$fields = $cf_in( $sec['id'] );
+		if ( ! $fields ) {
+			continue;
+		}
+		echo '<section class="cf-section cf-custom-section cf-section-' . esc_attr( $sec['id'] ) . '">';
+		if ( '' !== $sec['title'] ) {
+			echo '<h3 class="cf-section-title">' . esc_html( $sec['title'] ) . '</h3>';
+		}
+		echo '<div class="cf-fields">';
+		$cf_render( $fields );
+		echo '</div></section>';
+	}
+};
+
 // Newer WooCommerce adds a shipping phone field; in the shipping-first form it replaces the
 // billing phone (copied over on submit) and sits after the billing checkbox, not mid-address.
 $cf_phone = array();
@@ -77,7 +100,7 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 					<section class="cf-section cf-contact">
 						<h3 class="cf-section-title"><?php esc_html_e( 'Contact Information', 'checkoutflow' ); ?></h3>
 						<?php do_action( 'woocommerce_before_checkout_billing_form', $checkout ); ?>
-						<div class="cf-fields"><?php $cf_render( $cf_email ); ?></div>
+						<div class="cf-fields"><?php $cf_render( $cf_email ); ?><?php $cf_render( $cf_in( 'contact' ) ); ?></div>
 
 						<?php if ( ! is_user_logged_in() && $checkout->is_registration_enabled() ) : ?>
 							<div class="woocommerce-account-fields">
@@ -96,6 +119,8 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 							</div>
 						<?php endif; ?>
 					</section>
+
+					<?php $cf_sections( 'after_contact' ); ?>
 
 					<?php if ( $cf_ship_first ) : ?>
 						<section class="cf-section cf-address">
@@ -120,7 +145,7 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 								<h4 class="cf-subtitle"><?php esc_html_e( 'Billing Address', 'checkoutflow' ); ?></h4>
 								<div class="woocommerce-billing-fields__field-wrapper"><?php $cf_render( $cf_address ); ?></div>
 							</div>
-							<div class="cf-fields cf-billing-extra"><?php $cf_render( $cf_phone ); ?><?php $cf_render( $cf_extra ); ?></div>
+							<div class="cf-fields cf-billing-extra"><?php $cf_render( $cf_phone ); ?><?php $cf_render( $cf_extra ); ?><?php $cf_render( $cf_in( 'address' ) ); ?></div>
 							<?php do_action( 'woocommerce_after_checkout_billing_form', $checkout ); ?>
 						</section>
 					<?php else : ?>
@@ -133,7 +158,7 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 							<div class="woocommerce-billing-fields">
 								<div class="woocommerce-billing-fields__field-wrapper"><?php $cf_render( $cf_address ); ?></div>
 							</div>
-							<div class="cf-fields cf-billing-extra"><?php $cf_render( $cf_extra ); ?></div>
+							<div class="cf-fields cf-billing-extra"><?php $cf_render( $cf_extra ); ?><?php $cf_render( $cf_in( 'address' ) ); ?></div>
 							<?php do_action( 'woocommerce_after_checkout_billing_form', $checkout ); ?>
 
 							<?php if ( $cf_needs_ship ) : ?>
@@ -153,10 +178,12 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 						</section>
 					<?php endif; ?>
 
+					<?php $cf_sections( 'after_address' ); ?>
+
 					<div class="woocommerce-additional-fields">
 						<?php do_action( 'woocommerce_before_order_notes', $checkout ); ?>
 						<?php if ( apply_filters( 'woocommerce_enable_order_notes_field', 'yes' === get_option( 'woocommerce_enable_order_comments', 'yes' ) ) ) : ?>
-							<div class="woocommerce-additional-fields__field-wrapper"><?php $cf_render( $checkout->get_checkout_fields( 'order' ) ); ?></div>
+							<div class="woocommerce-additional-fields__field-wrapper"><?php $cf_render( $cf_in( 'notes' ) ); ?></div>
 						<?php endif; ?>
 						<?php do_action( 'woocommerce_after_order_notes', $checkout ); ?>
 					</div>
@@ -177,6 +204,8 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 					<?php do_action( 'checkoutflow_route_widget' ); ?>
 				</section>
 			<?php endif; ?>
+
+			<?php $cf_sections( 'before_payment' ); ?>
 
 			<section class="cf-section cf-payment">
 				<h3 class="cf-section-title"><?php esc_html_e( 'Payment Information', 'checkoutflow' ); ?></h3>
