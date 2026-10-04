@@ -669,3 +669,15 @@ body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input:not(:placeholder-
 .cf-modern .cf-coupon-input:not(:placeholder-shown) + .cf-coupon-label { top: 6px; transform: none; font-size: 11.5px; }
 .cf-modern .cf-coupon .cf-coupon-apply { min-height: 48px; transition: background-color .15s, color .15s; }
 .cf-modern .cf-coupon .cf-coupon-box.has-code .cf-coupon-apply { background: var(--cf-accent); color: #fff; }
+
+/* Route draws its own checkbox (a label) over an invisible 24px input. Themes that paint
+   checked checkboxes (Astra: blue background) would show that input as a blue square. */
+.cf-modern .cf-route [class*="checkbox-wrapper"] input[type="checkbox"],
+.cf-modern .cf-route [class*="checkbox-wrapper"] input[type="checkbox"]:checked,
+.cf-modern .cf-route [class*="checkbox-wrapper"] input[type="checkbox"]:hover,
+.cf-modern .cf-route [class*="checkbox-wrapper"] input[type="checkbox"]:focus {
+	background: transparent !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
