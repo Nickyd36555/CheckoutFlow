@@ -215,8 +215,12 @@ class Side_Cart {
 			$in_cart[] = (int) $item['product_id'];
 		}
 
-		$type = (string) Settings::get( 'cart_upsell_type' );
-		$ids  = array();
+		$type  = (string) Settings::get( 'cart_upsell_type' );
+		$ids   = array();
+		$names = array();
+		foreach ( $cart->get_cart() as $item ) {
+			$names[] = wp_specialchars_decode( $item['data']->get_name(), ENT_QUOTES );
+		}
 		if ( 'crosssell' !== $type ) {
 			foreach ( $cart->get_cart() as $item ) {
 				$parent = wc_get_product( $item['product_id'] );
@@ -228,6 +232,11 @@ class Side_Cart {
 		if ( 'upsell' !== $type ) {
 			$ids = array_merge( $ids, $cart->get_cross_sells() );
 		}
+		// Pairing rules, then what customers bought together in past orders.
+		$ids = array_merge( $ids, Recommendations::pairing_ids( $names ) );
+		if ( Settings::get( 'cart_upsell_history' ) ) {
+			$ids = array_merge( $ids, Recommendations::copurchase_ids( $in_cart ) );
+		}
 		$defaults = array_filter( array_map( 'absint', preg_split( '/[\s,]+/', (string) Settings::get( 'cart_upsell_defaults' ) ) ) );
 		if ( Settings::get( 'cart_upsell_always_defaults' ) ) {
 			$ids = array_merge( $defaults, $ids );
@@ -235,6 +244,10 @@ class Side_Cart {
 			$ids = $defaults;
 		}
 		$ids = array_values( array_diff( array_unique( array_map( 'intval', $ids ) ), $in_cart ) );
+		if ( Settings::get( 'cart_upsell_auto' ) ) {
+			// Top up with best sellers from the same categories, so the slider is never short.
+			$ids = array_values( array_unique( array_merge( $ids, array_diff( $this->category_best_sellers( $cart ), $in_cart ) ) ) );
+		}
 		$ids = apply_filters( 'checkoutflow_cart_recommendation_ids', $ids, $cart );
 		$out = array();
 		foreach ( $ids as $id ) {
@@ -247,6 +260,43 @@ class Side_Cart {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Best sellers from the cart items' categories (cached for a few hours per category set).
+	 *
+	 * @param \WC_Cart $cart Cart.
+	 * @return int[]
+	 */
+	private function category_best_sellers( $cart ) {
+		$cats = array();
+		foreach ( $cart->get_cart() as $item ) {
+			$cats = array_merge( $cats, wc_get_product_term_ids( $item['product_id'], 'product_cat' ) );
+		}
+		$cats = array_values( array_unique( array_map( 'intval', $cats ) ) );
+		sort( $cats );
+		$key = 'cf_upsell_cats_' . md5( implode( ',', $cats ) );
+		$ids = get_transient( $key );
+		if ( false === $ids ) {
+			$args = array(
+				'limit'      => 20,
+				'status'     => 'publish',
+				'visibility' => 'catalog',
+				'orderby'    => 'popularity',
+				'order'      => 'DESC',
+				'return'     => 'ids',
+			);
+			if ( $cats ) {
+				$terms = get_terms( array( 'taxonomy' => 'product_cat', 'include' => $cats, 'fields' => 'id=>slug', 'hide_empty' => false ) );
+				$args['category'] = is_array( $terms ) ? array_values( $terms ) : array();
+			}
+			$ids = $cats ? array_map( 'intval', wc_get_products( $args ) ) : array();
+			// Then store-wide best sellers, for categories with few other products.
+			unset( $args['category'] );
+			$ids = array_values( array_unique( array_merge( $ids, array_map( 'intval', wc_get_products( $args ) ) ) ) );
+			set_transient( $key, $ids, 6 * HOUR_IN_SECONDS );
+		}
+		return $ids;
 	}
 
 	/**

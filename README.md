@@ -100,7 +100,15 @@ Any tag accepts a fallback: `{first_name|there}`.
 
 FunnelKit-style drawer: "Review Your Cart (n)", items with a remove button on the image, quantity steppers, struck-through prices with the % saved in green, a **Frequently Bought Together** slider, a collapsible discount-code field, coupon tags, totals and a checkout button.
 
-Recommendations (Settings → Side Cart) come from each product's **Upsells** and/or **Cross-sells** (Product data → Linked Products), plus optional default product IDs shown when nothing is linked (or always). FunnelKit Cart's upsell settings are imported once.
+Recommendations (Settings → Side Cart), in this order:
+
+1. Each product's **Upsells** and/or **Cross-sells** (Product data → Linked Products).
+2. **Pairing rules**: `In cart => Suggest`, matched against product names, e.g. `BPC => TB-500|TB4` suggests TB-500 when the cart has a BPC product but no TB-500/TB4. The suggested product is the single (non-blend) product, in the same strength as the cart item when available. Ships with rules for common stacks (BPC/TB-500, CJC/Ipamorelin, Selank/Semax, Epitalon/Pinealon, MOTS-C/5-Amino-1MQ/NAD+, PT-141/Kisspeptin, …).
+3. **Learned from your orders**: products bought together in the last 12 months (rebuilt daily).
+4. Default product IDs (shown when nothing else applies, or always).
+5. Best sellers from the same categories, then the whole store, to fill the slider.
+
+FunnelKit Cart's upsell settings are imported once.
 
 ## Header cart icon
 

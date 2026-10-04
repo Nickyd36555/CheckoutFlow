@@ -778,6 +778,25 @@ class Settings {
 				'label'   => __( 'Always show default products', 'checkoutflow' ),
 				'default' => false,
 			),
+			'cart_upsell_history'       => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Learn from past orders', 'checkoutflow' ),
+				'default' => true,
+				'desc'    => __( 'Suggest products customers bought together in your own orders (last 12 months, updated daily).', 'checkoutflow' ),
+			),
+			'cart_pairings'             => array(
+				'type'    => 'textarea',
+				'label'   => __( 'Pairing rules', 'checkoutflow' ),
+				'default' => class_exists( 'CheckoutFlow\\Recommendations' ) ? Recommendations::default_rules() : '',
+				'rows'    => 10,
+				'desc'    => __( 'One per line: "In cart => Suggest", matched against product names (e.g. "BPC-157 => TB-500" suggests TB-500 when the cart has BPC-157 but no TB-500). Leave empty to turn off.', 'checkoutflow' ),
+			),
+			'cart_upsell_auto'          => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Fill in automatically', 'checkoutflow' ),
+				'default' => true,
+				'desc'    => __( 'Fill the remaining spots with best sellers from the same categories (then the whole store).', 'checkoutflow' ),
+			),
 			'cart_upsell_heading'       => array(
 				'type'    => 'text',
 				'label'   => __( 'Recommendations heading', 'checkoutflow' ),

@@ -39,6 +39,7 @@ final class Plugin {
 
 		require_once CHECKOUTFLOW_DIR . 'includes/helpers.php';
 		require_once CHECKOUTFLOW_DIR . 'includes/class-thankyou.php';
+		require_once CHECKOUTFLOW_DIR . 'includes/class-recommendations.php';
 
 		if ( Settings::flag( 'checkout_enabled' ) ) {
 			require_once CHECKOUTFLOW_DIR . 'includes/class-checkout.php';
@@ -103,11 +104,17 @@ final class Plugin {
 		Recovery\Recovery::mark_abandoned();
 		Marketing\Campaigns::dispatch_due();
 
+		if ( false === get_option( Recommendations::PAIRS_OPTION ) && Settings::get( 'cart_upsells' ) && Settings::get( 'cart_upsell_history' ) ) {
+			Recommendations::rebuild(); // First run after install/update.
+		}
 		if ( get_option( 'checkoutflow_daily' ) !== gmdate( 'Y-m-d' ) ) {
 			update_option( 'checkoutflow_daily', gmdate( 'Y-m-d' ), false );
 			Marketing\Automations::run_daily();
 			Recovery\Recovery::cleanup();
 			Mail\Coupons::cleanup();
+			if ( Settings::get( 'cart_upsells' ) && Settings::get( 'cart_upsell_history' ) ) {
+				Recommendations::rebuild();
+			}
 		}
 
 		Mail\Queue::process();
