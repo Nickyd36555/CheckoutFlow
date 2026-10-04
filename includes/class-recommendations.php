@@ -16,6 +16,10 @@ defined( 'ABSPATH' ) || exit;
 class Recommendations {
 
 	const PAIRS_OPTION = 'checkoutflow_copurchase';
+	const META_OPTION  = 'checkoutflow_copurchase_meta';
+
+	/** @var int Orders read by the last rebuild. */
+	private static $orders_read = 0;
 
 	/**
 	 * Default pairing rules (trigger => suggestion), for products commonly bought together.
@@ -196,8 +200,13 @@ class Recommendations {
 		$since = gmdate( 'Y-m-d H:i:s', time() - YEAR_IN_SECONDS );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT a.product_id AS a, b.product_id AS b, COUNT(DISTINCT a.order_id) AS n FROM {$table} a INNER JOIN {$table} b ON b.order_id = a.order_id AND b.product_id <> a.product_id INNER JOIN {$wpdb->prefix}wc_order_stats s ON s.order_id = a.order_id AND s.status IN ('wc-processing','wc-completed','wc-on-hold') WHERE a.date_created >= %s GROUP BY a.product_id, b.product_id HAVING n >= 2 ORDER BY n DESC LIMIT 20000", $since ), ARRAY_A );
+		$source = 'analytics';
 		if ( ! $rows && ! $wpdb->get_var( "SELECT 1 FROM {$table} LIMIT 1" ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$rows = self::pairs_from_orders( $since ); // Analytics tables not filled (Analytics off / not synced yet).
+			$rows   = self::pairs_from_orders( $since ); // Analytics tables not filled (Analytics off / not synced yet).
+			$source = 'orders';
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			self::$orders_read = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wc_order_stats WHERE status IN ('wc-processing','wc-completed','wc-on-hold') AND date_created >= %s", $since ) );
 		}
 		$pairs = array();
 		foreach ( (array) $rows as $r ) {
@@ -207,7 +216,41 @@ class Recommendations {
 			}
 		}
 		update_option( self::PAIRS_OPTION, $pairs, false );
+		update_option( self::META_OPTION, array( 'time' => time(), 'orders' => self::$orders_read, 'source' => $source ), false );
 		self::flush_catalog();
+	}
+
+	/**
+	 * Top product pairs bought together (each pair once), for the report.
+	 *
+	 * @param int $limit Max pairs.
+	 * @return array List of [ product id, product id, orders ].
+	 */
+	public static function top_pairs( $limit = 40 ) {
+		$seen = array();
+		foreach ( (array) get_option( self::PAIRS_OPTION, array() ) as $a => $others ) {
+			foreach ( $others as $b => $n ) {
+				$key = min( $a, $b ) . ':' . max( $a, $b );
+				if ( ! isset( $seen[ $key ] ) || $seen[ $key ][2] < $n ) {
+					$seen[ $key ] = array( (int) min( $a, $b ), (int) max( $a, $b ), (int) $n );
+				}
+			}
+		}
+		usort(
+			$seen,
+			static function ( $x, $y ) {
+				return $y[2] - $x[2];
+			}
+		);
+		return array_slice( array_values( $seen ), 0, $limit );
+	}
+
+	/**
+	 * A short rule keyword for a product name: drop the strength ("TB-500 10MG" → "TB-500").
+	 */
+	public static function keyword( $name ) {
+		$k = trim( preg_replace( '/\s*\(?\d+(?:\.\d+)?\s*(mg|mcg|g|ml)\)?.*$/i', '', $name ) );
+		return '' !== $k ? $k : $name;
 	}
 
 	/**
@@ -230,6 +273,7 @@ class Recommendations {
 					'type'         => 'shop_order',
 				)
 			);
+			self::$orders_read += count( $orders );
 			foreach ( $orders as $order ) {
 				$ids = array();
 				foreach ( $order->get_items() as $item ) {

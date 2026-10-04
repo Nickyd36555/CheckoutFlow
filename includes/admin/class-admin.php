@@ -29,7 +29,7 @@ class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 
-		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
+		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'reco_rebuild', 'reco_add_rule', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
@@ -55,6 +55,7 @@ class Admin {
 		add_submenu_page( 'checkoutflow', __( 'Automations', 'checkoutflow' ), __( 'Automations', 'checkoutflow' ), self::CAP, 'checkoutflow-automations', array( $this, 'page_automations' ) );
 		add_submenu_page( 'checkoutflow', __( 'Contacts', 'checkoutflow' ), __( 'Contacts', 'checkoutflow' ), self::CAP, 'checkoutflow-contacts', array( $this, 'page_contacts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Discounts', 'checkoutflow' ), __( 'Discounts', 'checkoutflow' ), self::CAP, 'checkoutflow-discounts', array( $this, 'page_discounts' ) );
+		add_submenu_page( 'checkoutflow', __( 'Upsells', 'checkoutflow' ), __( 'Upsells', 'checkoutflow' ), self::CAP, 'checkoutflow-upsells', array( $this, 'page_upsells' ) );
 		add_submenu_page( 'checkoutflow', __( 'Abandoned Carts', 'checkoutflow' ), __( 'Abandoned Carts', 'checkoutflow' ), self::CAP, 'checkoutflow-carts', array( $this, 'page_carts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Thank You Page', 'checkoutflow' ), __( 'Thank You Page', 'checkoutflow' ), self::CAP, 'checkoutflow-thankyou', array( $this, 'page_thankyou' ) );
 		add_submenu_page( 'checkoutflow', __( 'Settings', 'checkoutflow' ), __( 'Settings', 'checkoutflow' ), self::CAP, 'checkoutflow-settings', array( $this, 'page_settings' ) );
@@ -295,6 +296,40 @@ class Admin {
 		list( $js, $ver ) = \CheckoutFlow\asset( 'js/editor.js' );
 		wp_enqueue_script( 'checkoutflow-editor', $js, array( 'checkoutflow-admin' ), $ver, true );
 		wp_localize_script( 'checkoutflow-editor', 'checkoutflowEditor', $config );
+	}
+
+	public function page_upsells() {
+		$this->view( 'upsells' );
+	}
+
+	public function post_reco_rebuild() {
+		self::check( 'cf_reco_rebuild' );
+		\CheckoutFlow\Recommendations::rebuild();
+		$meta = get_option( \CheckoutFlow\Recommendations::META_OPTION, array() );
+		/* translators: %s: number of orders */
+		self::redirect( self::url( 'upsells' ), sprintf( __( 'Analyzed %s orders.', 'checkoutflow' ), number_format_i18n( isset( $meta['orders'] ) ? $meta['orders'] : 0 ) ) );
+	}
+
+	public function post_reco_add_rule() {
+		self::check( 'cf_reco_add_rule' );
+		$a = isset( $_POST['a'] ) ? wc_get_product( absint( $_POST['a'] ) ) : null;
+		$b = isset( $_POST['b'] ) ? wc_get_product( absint( $_POST['b'] ) ) : null;
+		if ( ! $a || ! $b ) {
+			self::redirect( self::url( 'upsells' ), '!' . __( 'Product not found.', 'checkoutflow' ) );
+		}
+		$ka     = \CheckoutFlow\Recommendations::keyword( wp_specialchars_decode( $a->get_name(), ENT_QUOTES ) );
+		$kb     = \CheckoutFlow\Recommendations::keyword( wp_specialchars_decode( $b->get_name(), ENT_QUOTES ) );
+		$values = Settings::all();
+		$lines  = array_filter( array_map( 'trim', preg_split( '/\r?\n/', (string) $values['cart_pairings'] ) ), 'strlen' );
+		foreach ( array( $ka . ' => ' . $kb, $kb . ' => ' . $ka ) as $rule ) {
+			if ( ! in_array( $rule, $lines, true ) ) {
+				array_unshift( $lines, $rule );
+			}
+		}
+		$values['cart_pairings'] = sanitize_textarea_field( implode( "\n", $lines ) );
+		Settings::save( $values );
+		/* translators: 1: product, 2: product */
+		self::redirect( self::url( 'upsells' ), sprintf( __( 'Added rules: %1$s ⇄ %2$s.', 'checkoutflow' ), $ka, $kb ) );
 	}
 
 	public function page_thankyou() {
