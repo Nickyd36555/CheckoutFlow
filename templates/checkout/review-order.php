@@ -61,7 +61,10 @@ $cf_coupon = Settings::get( 'checkout_coupon' );
 				<a href="#" class="cf-coupon-toggle"><?php esc_html_e( 'Have a coupon code?', 'checkoutflow' ); ?></a>
 			<?php endif; ?>
 			<div class="cf-coupon-box" <?php echo 'summary' === $cf_coupon ? 'hidden' : ''; ?>>
-				<input type="text" class="input-text cf-coupon-input" placeholder="<?php esc_attr_e( 'Coupon code', 'checkoutflow' ); ?>" aria-label="<?php esc_attr_e( 'Coupon code', 'checkoutflow' ); ?>" autocomplete="off">
+				<span class="cf-coupon-field">
+					<input type="text" id="cf-coupon-code" class="input-text cf-coupon-input" placeholder=" " autocomplete="off">
+					<label for="cf-coupon-code" class="cf-coupon-label"><?php esc_html_e( 'Coupon code', 'checkoutflow' ); ?></label>
+				</span>
 				<button type="button" class="button cf-coupon-apply"><?php esc_html_e( 'Apply', 'checkoutflow' ); ?></button>
 			</div>
 		</div>

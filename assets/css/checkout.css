@@ -647,3 +647,25 @@ body.cf-checkout-modern.woocommerce-checkout form.cf-modern #order_review td.pro
 body.cf-checkout-modern .cf-modern .cf-items td.cf-item-info .cf-qty { display: inline-flex; }
 body.cf-checkout-modern .cf-modern .cf-items td.cf-item-thumb,
 body.cf-checkout-modern .cf-modern .cf-items td.cf-item-total { vertical-align: top; }
+
+/* Coupon box: floating "Coupon code" label, Apply button lights up once a code is typed. */
+.cf-modern .cf-coupon-field { position: relative; flex: 1; min-width: 0; display: block; }
+body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input { width: 100%; min-height: 48px; padding: 14px 12px; }
+.cf-modern .cf-coupon-label {
+	position: absolute;
+	left: 13px;
+	top: 50%;
+	transform: translateY(-50%);
+	margin: 0;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--cf-label, #4a4f57);
+	pointer-events: none;
+	transition: top .15s, font-size .15s, transform .15s;
+}
+body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input:focus,
+body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input:not(:placeholder-shown) { padding: 20px 12px 6px; }
+.cf-modern .cf-coupon-input:focus + .cf-coupon-label,
+.cf-modern .cf-coupon-input:not(:placeholder-shown) + .cf-coupon-label { top: 6px; transform: none; font-size: 11.5px; }
+.cf-modern .cf-coupon .cf-coupon-apply { min-height: 48px; transition: background-color .15s, color .15s; }
+.cf-modern .cf-coupon .cf-coupon-box.has-code .cf-coupon-apply { background: var(--cf-accent); color: #fff; }

@@ -90,6 +90,8 @@
 		showCouponMsg();
 	} );
 	$body.on( 'input', '.cf-coupon-input', function () {
+		// The Apply button lights up once something is typed.
+		$( this ).closest( '.cf-coupon-box' ).toggleClass( 'has-code', $.trim( this.value ) !== '' );
 		if ( couponMsg && ! couponMsg.ok ) {
 			couponMsg = null;
 			showCouponMsg();
