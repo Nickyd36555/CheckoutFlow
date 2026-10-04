@@ -681,3 +681,7 @@ body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input:not(:placeholder-
 	box-shadow: none !important;
 	outline: none !important;
 }
+
+/* Discounted line: green "20% off" tag. */
+.cf-off { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 10px; background: #e6f4ea; color: #1a7f37; font-size: 12px; font-weight: 700; line-height: 1.5; white-space: nowrap; text-decoration: none; }
+.cf-modern .cf-item-total .cf-off { display: block; width: max-content; margin: 4px 0 0 auto; }

@@ -639,7 +639,8 @@ class Thank_You {
 		$list = (float) $product->get_regular_price() * $item->get_quantity();
 		if ( $list > 0 && $list - (float) $item->get_subtotal() > 0.009 ) {
 			$was = 'incl' === get_option( 'woocommerce_tax_display_cart' ) ? wc_get_price_including_tax( $product, array( 'qty' => $item->get_quantity(), 'price' => $product->get_regular_price() ) ) : $list;
-			return '<del aria-hidden="true">' . wc_price( $was, array( 'currency' => $order->get_currency() ) ) . '</del> <ins>' . $html . '</ins>';
+			$badge = class_exists( 'CheckoutFlow\\Discounts' ) ? Discounts::off_badge( $list, (float) $item->get_subtotal() ) : '';
+			return '<del aria-hidden="true">' . wc_price( $was, array( 'currency' => $order->get_currency() ) ) . '</del> <ins>' . $html . '</ins>' . $badge;
 		}
 		return $html;
 	}

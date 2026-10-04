@@ -353,7 +353,23 @@ class Discounts {
 			'qty'   => (float) $item['quantity'],
 		);
 		$was  = WC()->cart && WC()->cart->display_prices_including_tax() ? wc_get_price_including_tax( $product, $args ) : wc_get_price_excluding_tax( $product, $args );
-		return '<del aria-hidden="true">' . wc_price( $was ) . '</del> <ins>' . $html . '</ins>';
+		return '<del aria-hidden="true">' . wc_price( $was ) . '</del> <ins>' . $html . '</ins>' . self::off_badge( $list, (float) $product->get_price() );
+	}
+
+	/**
+	 * Green "20% off" tag for a discounted line.
+	 *
+	 * @param float $list List (regular) unit price.
+	 * @param float $now  Price paid per unit.
+	 * @return string
+	 */
+	public static function off_badge( $list, $now ) {
+		$pct = $list > 0 ? (int) round( ( $list - $now ) / $list * 100 ) : 0;
+		if ( $pct < 1 ) {
+			return '';
+		}
+		/* translators: %d: percent saved */
+		return ' <span class="cf-off">' . esc_html( sprintf( __( '%d%% off', 'checkoutflow' ), $pct ) ) . '</span>';
 	}
 
 	/* ---------- cart rules ---------- */
