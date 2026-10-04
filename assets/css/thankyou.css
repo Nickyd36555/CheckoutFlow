@@ -4,9 +4,11 @@ body.cf-thankyou-page .entry-header .entry-title,
 body.cf-thankyou-page .page-title,
 body.cf-thankyou-page .woocommerce-breadcrumb { display: none; }
 body.cf-thankyou-page .entry-header:not(:has(> :not(.entry-title))) { display: none; }
-body.cf-thankyou-page,
+/* Page background on the content area only, so the site header keeps its own look. */
 body.cf-thankyou-page .site-content,
 body.cf-thankyou-page #content { background: var(--cf-ty-page-bg, #f4f6f7); }
+body.cf-thankyou-page #content #primary,
+body.cf-thankyou-page .site-content .content-area { padding-top: 1px; }
 body.cf-thankyou-page #content #primary,
 body.cf-thankyou-page .site-content .content-area { margin-top: 32px; }
 body.cf-thankyou-page .ast-separate-container .ast-article-single,
