@@ -584,7 +584,10 @@ class Admin {
 		);
 		$ok = SMTP::send( $to, __( 'CheckoutFlow SMTP test', 'checkoutflow' ), $html );
 		/* translators: %s: error message */
-		$msg = $ok ? __( 'Test email sent. Check your inbox (and spam folder).', 'checkoutflow' ) : '!' . sprintf( __( 'Sending failed: %s', 'checkoutflow' ), SMTP::last_error() ? SMTP::last_error() : __( 'unknown error', 'checkoutflow' ) );
+		$sent = Settings::get( 'smtp_enabled' )
+			? __( 'Test email accepted by your SMTP server. Check your inbox (and spam folder).', 'checkoutflow' )
+			: __( 'Test email handed to WordPress\'s default mail (CheckoutFlow SMTP is off). If it doesn\'t arrive, no SMTP plugin is delivering it: turn on "Send email through SMTP" above.', 'checkoutflow' );
+		$msg  = $ok ? $sent : '!' . sprintf( __( 'Sending failed: %s', 'checkoutflow' ), SMTP::last_error() ? SMTP::last_error() : __( 'unknown error', 'checkoutflow' ) );
 		self::redirect( self::url( 'settings', array( 'tab' => 'email' ) ), $msg );
 	}
 
