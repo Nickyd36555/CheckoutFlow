@@ -1,8 +1,8 @@
 <?php
 /**
  * Payment methods + place order (modern checkout). Same as WooCommerce's template except the
- * before/after payment hooks, which form-checkout.php fires around the "Payment Information"
- * section so add-ons like package protection or store credit appear above it.
+ * before/after payment hooks, which form-checkout.php fires itself: add-ons on the "before"
+ * hook (e.g. store credit) appear under the "Payment Information" heading.
  *
  * @package CheckoutFlow
  * @var WC_Payment_Gateway[] $available_gateways

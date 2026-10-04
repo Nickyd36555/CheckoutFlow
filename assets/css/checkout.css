@@ -689,3 +689,10 @@ body.cf-checkout-modern .cf-modern .cf-coupon .cf-coupon-input:not(:placeholder-
 .cf-modern .cf-totals .cf-discount-fee th,
 .cf-modern .cf-totals .cf-discount-fee td,
 .cf-modern .cf-totals .cf-discount-fee td .amount { color: #1a7f37 !important; }
+
+/* Add-ons under "Payment Information" (e.g. store credit). */
+.cf-modern .cf-before-payment { margin: 0 0 14px; }
+.cf-modern .cf-before-payment label { font-weight: 600; }
+.cf-modern .cf-before-payment .cf-star { color: #f5b301; }
+.cf-modern .cf-before-payment .cf-money,
+.cf-modern .cf-before-payment .woocommerce-Price-amount { color: #1a7f37; font-weight: 700; }

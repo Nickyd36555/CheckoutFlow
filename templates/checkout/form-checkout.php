@@ -178,9 +178,17 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 				</section>
 			<?php endif; ?>
 
-			<?php do_action( 'woocommerce_review_order_before_payment' ); ?>
 			<section class="cf-section cf-payment">
 				<h3 class="cf-section-title"><?php esc_html_e( 'Payment Information', 'checkoutflow' ); ?></h3>
+				<?php
+				// Add-ons printed before the payment methods (e.g. "Use my store credit") go under the heading.
+				ob_start();
+				do_action( 'woocommerce_review_order_before_payment' );
+				$cf_before_payment = trim( (string) ob_get_clean() );
+				if ( '' !== $cf_before_payment ) {
+					echo '<div class="cf-before-payment">' . $cf_before_payment . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput -- other plugins' output
+				}
+				?>
 				<?php woocommerce_checkout_payment(); ?>
 			</section>
 			<?php do_action( 'woocommerce_review_order_after_payment' ); ?>

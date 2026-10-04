@@ -265,7 +265,31 @@
 		} );
 	}
 
+	/* ---------- store credit / add-ons above the payment methods: yellow stars, green amounts ---------- */
+
+	function decorateAddons() {
+		document.querySelectorAll( '.cf-before-payment' ).forEach( function ( box ) {
+			var walker = document.createTreeWalker( box, NodeFilter.SHOW_TEXT );
+			var nodes = [];
+			while ( walker.nextNode() ) {
+				var n = walker.currentNode;
+				if ( /[★☆]|[$€£]\s?\d/.test( n.nodeValue ) && ! n.parentNode.closest( '.cf-star, .cf-money, .woocommerce-Price-amount, script, style' ) ) {
+					nodes.push( n );
+				}
+			}
+			nodes.forEach( function ( n ) {
+				var html = n.nodeValue.replace( /&/g, '&amp;' ).replace( /</g, '&lt;' )
+					.replace( /[★☆]/g, '<span class="cf-star">$&</span>' )
+					.replace( /[$€£]\s?\d[\d,]*(?:\.\d+)?/g, '<span class="cf-money">$&</span>' );
+				var span = document.createElement( 'span' );
+				span.innerHTML = html;
+				n.parentNode.replaceChild( span, n );
+			} );
+		} );
+	}
+
 	$( function () {
+		decorateAddons();
 		collapseAddress2();
 		syncBilling();
 		floatLabels();
@@ -275,6 +299,7 @@
 	} );
 	$body.on( 'updated_checkout', showCouponMsg );
 	$body.on( 'updated_checkout country_to_state_changed', function () {
+		decorateAddons();
 		collapseAddress2();
 		floatLabels();
 		alignRoute();
