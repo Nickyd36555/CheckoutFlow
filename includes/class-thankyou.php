@@ -107,7 +107,7 @@ class Thank_You {
 				'group'   => 'order',
 				'label'   => __( 'Customer information', 'checkoutflow' ),
 				'dynamic' => true,
-				'props'   => array( 'title' => __( 'Information', 'checkoutflow' ), 'billing' => 'different', 'show_contact' => true ),
+				'props'   => array( 'title' => __( 'Information', 'checkoutflow' ), 'align' => 'center', 'billing' => 'different', 'show_contact' => true ),
 				'options' => array(
 					'billing' => array(
 						'different' => __( 'Billing address only when different', 'checkoutflow' ),
@@ -652,34 +652,45 @@ class Thank_You {
 		$fields   = array();
 		if ( $b['show_contact'] ) {
 			if ( $order->get_billing_email() ) {
-				$fields[] = array( __( 'Email', 'checkoutflow' ), esc_html( $order->get_billing_email() ) );
+				$fields[] = array( __( 'Email', 'checkoutflow' ), esc_html( $order->get_billing_email() ), 'mail' );
 			}
 			$phone = $order->get_billing_phone() ? $order->get_billing_phone() : $order->get_shipping_phone();
 			if ( $phone ) {
-				$fields[] = array( __( 'Phone', 'checkoutflow' ), esc_html( $phone ) );
+				$fields[] = array( __( 'Phone', 'checkoutflow' ), esc_html( $phone ), 'phone' );
 			}
 		}
 		if ( $shipping ) {
-			$fields[] = array( __( 'Shipping address', 'checkoutflow' ), '<address>' . wp_kses_post( $shipping ) . '</address>' );
+			$fields[] = array( __( 'Shipping address', 'checkoutflow' ), '<address>' . wp_kses_post( $shipping ) . '</address>', 'pin' );
 		}
 		if ( $show_bil ) {
-			$fields[] = array( __( 'Billing address', 'checkoutflow' ), '<address>' . wp_kses_post( $billing ) . '</address>' );
+			$fields[] = array( __( 'Billing address', 'checkoutflow' ), '<address>' . wp_kses_post( $billing ) . '</address>', 'card' );
 		}
 		if ( $order->get_shipping_method() ) {
-			$fields[] = array( __( 'Shipping method', 'checkoutflow' ), esc_html( $order->get_shipping_method() ) );
+			$fields[] = array( __( 'Shipping method', 'checkoutflow' ), esc_html( $order->get_shipping_method() ), 'truck' );
 		}
 		if ( ! $fields ) {
 			return '';
 		}
+		$icons = array(
+			'mail' => '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg>',
+			'phone' => '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2Z"/></svg>',
+			'pin' => '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+			'card' => '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/></svg>',
+			'truck' => '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 6h11v10H2zM13 10h4l4 4v2h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
+		);
 		ob_start();
 		?>
-		<div class="cf-tyb-card cf-tyb-customer">
+		<div class="cf-tyb-card cf-tyb-customer is-<?php echo esc_attr( isset( $b['align'] ) ? $b['align'] : 'center' ); ?>">
 			<?php if ( $b['title'] ) : ?>
 				<h2 class="cf-tyb-h"><?php echo esc_html( $b['title'] ); ?></h2>
 			<?php endif; ?>
 			<dl class="cf-tyb-fields">
 				<?php foreach ( $fields as $f ) : ?>
-					<div><dt><?php echo esc_html( $f[0] ); ?></dt><dd><?php echo $f[1]; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above ?></dd></div>
+					<div class="cf-tyb-field">
+						<span class="cf-tyb-field-icon"><?php echo $icons[ $f[2] ]; // phpcs:ignore WordPress.Security.EscapeOutput -- static SVG ?></span>
+						<dt><?php echo esc_html( $f[0] ); ?></dt>
+						<dd><?php echo $f[1]; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above ?></dd>
+					</div>
 				<?php endforeach; ?>
 			</dl>
 			<?php do_action( 'woocommerce_order_details_after_customer_details', $order ); ?>
