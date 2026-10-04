@@ -23,6 +23,35 @@
 		}
 	} );
 
+	// The summary is re-rendered on every checkout update, so the coupon message is kept here
+	// and put back under the coupon box each time.
+	var couponMsg = null;
+
+	function noticeText( html ) {
+		var $n = $( '<div>' ).html( html );
+		$n.find( 'a.button, button, script, style' ).remove();
+		return $.trim( $n.text().replace( /\s+/g, ' ' ) );
+	}
+
+	function showCouponMsg() {
+		var $wrap = $( '.cf-summary .cf-coupon' );
+		$wrap.find( '.cf-coupon-msg' ).remove();
+		if ( ! couponMsg || ! $wrap.length ) {
+			return;
+		}
+		var $m = $( '<p class="cf-coupon-msg" role="status"></p>' ).addClass( couponMsg.ok ? 'is-success' : 'is-error' );
+		$m.append( couponMsg.ok
+			? '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M4.5 8.2l2.2 2.2 4.8-4.8" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>'
+			: '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M8 4.2v4.6M8 11.3v.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>' );
+		$m.append( $( '<span class="cf-coupon-msg-text"></span>' ).text( couponMsg.text ) );
+		if ( couponMsg.ok && couponMsg.code ) {
+			$m.append( ' ' ).append(
+				$( '<a href="#" class="woocommerce-remove-coupon cf-coupon-msg-remove"></a>' ).attr( 'data-coupon', couponMsg.code ).text( T.removeCoupon || 'Remove' )
+			);
+		}
+		$wrap.append( $m );
+	}
+
 	function applyCoupon( $box ) {
 		var code = $.trim( $box.find( '.cf-coupon-input' ).val() );
 		if ( ! code ) {
@@ -34,14 +63,38 @@
 			security: wc_checkout_params.apply_coupon_nonce,
 			coupon_code: code
 		} ).done( function ( html ) {
-			$( '.woocommerce-error, .woocommerce-message, .woocommerce-info, .is-error, .is-success' ).remove();
-			$( 'form.checkout' ).before( html );
-			$body.trigger( 'applied_coupon_in_checkout', [ code ] );
+			$( '.woocommerce-error, .woocommerce-message, .woocommerce-info, .is-error, .is-success' ).not( '.cf-coupon-msg' ).remove();
+			var failed = /woocommerce-error|is-error/.test( html );
+			couponMsg = {
+				ok: ! failed,
+				code: failed ? '' : code.toLowerCase(),
+				text: failed ? ( noticeText( html ) || T.couponError ) : ( T.couponApplied || noticeText( html ) )
+			};
+			showCouponMsg();
+			if ( ! failed ) {
+				$box.find( '.cf-coupon-input' ).val( '' );
+				$body.trigger( 'applied_coupon_in_checkout', [ code ] );
+			}
 			$body.trigger( 'update_checkout', { update_shipping_method: false } );
 		} ).always( function () {
 			$btn.prop( 'disabled', false );
 		} );
 	}
+
+	// WooCommerce removes the coupon (summary row or our message link) and prints its notice
+	// above the form; keep the feedback next to the coupon box instead.
+	$body.on( 'removed_coupon_in_checkout', function () {
+		$( 'form.checkout' ).prevAll( '.woocommerce-message, .woocommerce-error, .woocommerce-info, .wc-block-components-notice-banner' ).remove();
+		$( '.woocommerce-notices-wrapper' ).empty();
+		couponMsg = { ok: true, code: '', text: T.couponRemoved || 'Coupon removed.' };
+		showCouponMsg();
+	} );
+	$body.on( 'input', '.cf-coupon-input', function () {
+		if ( couponMsg && ! couponMsg.ok ) {
+			couponMsg = null;
+			showCouponMsg();
+		}
+	} );
 
 	$body.on( 'click', '.cf-coupon-apply', function ( e ) {
 		e.preventDefault();
@@ -218,6 +271,7 @@
 		// Browser autofill doesn't fire input events.
 		setTimeout( floatLabels, 600 );
 	} );
+	$body.on( 'updated_checkout', showCouponMsg );
 	$body.on( 'updated_checkout country_to_state_changed', function () {
 		collapseAddress2();
 		floatLabels();

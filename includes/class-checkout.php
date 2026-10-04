@@ -352,6 +352,10 @@ class Checkout {
 				'addAddress2' => __( '+ Add apartment, suite, unit, etc.', 'checkoutflow' ),
 				'showSummary' => __( 'Show order summary', 'checkoutflow' ),
 				'hideSummary' => __( 'Hide order summary', 'checkoutflow' ),
+				'couponApplied' => __( 'Coupon code applied successfully.', 'checkoutflow' ),
+				'couponRemoved' => __( 'Coupon removed.', 'checkoutflow' ),
+				'couponError'   => __( 'That coupon code could not be applied.', 'checkoutflow' ),
+				'removeCoupon'  => __( 'Remove', 'checkoutflow' ),
 			)
 		);
 	}

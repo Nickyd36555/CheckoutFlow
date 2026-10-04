@@ -631,3 +631,19 @@ body.cf-checkout .cf-modern button { font-family: var(--cf-font, inherit); }
 body.cf-checkout .cf-modern { color: var(--cf-text, inherit); }
 .cf-modern .cf-col-summary { background: var(--cf-summary-bg, #f7f7f7); }
 .cf-modern h3, .cf-modern .cf-badge-item strong { color: var(--cf-heading, inherit); }
+
+/* Coupon feedback under the coupon box, and coupon rows in the totals. */
+.cf-modern .cf-coupon-msg { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 10px 0 0; font-size: 13px; font-weight: 500; }
+.cf-modern .cf-coupon-msg svg { flex: 0 0 15px; margin-right: 2px; }
+.cf-modern .cf-coupon-msg.is-success { color: #1a7f37; }
+.cf-modern .cf-coupon-msg.is-error { color: #cf222e; }
+.cf-modern .cf-coupon-msg-remove { color: #cf222e !important; text-decoration: underline; }
+.cf-modern .cf-totals .cart-discount th,
+.cf-modern .cf-totals .cart-discount td,
+.cf-modern .cf-totals .cart-discount td .amount { color: #1a7f37 !important; }
+.cf-modern .cf-totals .cart-discount .woocommerce-remove-coupon { color: #1a7f37; text-decoration: underline; font-size: 13px; }
+/* Themes (e.g. Astra) make .product-name a flex row; keep the quantity control under the name. */
+body.cf-checkout-modern.woocommerce-checkout form.cf-modern #order_review td.product-name.cf-item-info { display: table-cell; vertical-align: top; }
+body.cf-checkout-modern .cf-modern .cf-items td.cf-item-info .cf-qty { display: inline-flex; }
+body.cf-checkout-modern .cf-modern .cf-items td.cf-item-thumb,
+body.cf-checkout-modern .cf-modern .cf-items td.cf-item-total { vertical-align: top; }
