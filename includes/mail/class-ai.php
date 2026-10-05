@@ -136,6 +136,7 @@ class AI {
 				'src'           => array( 'type' => 'string' ),
 				'alt'           => array( 'type' => 'string' ),
 				'height'        => array( 'type' => 'integer' ),
+				'width'         => array( 'type' => 'integer' ),
 				'ids'           => array( 'type' => 'string' ),
 				'columns'       => array( 'type' => 'integer' ),
 				'button_text'   => array( 'type' => 'string' ),
@@ -144,6 +145,8 @@ class AI {
 				'days'          => array( 'type' => 'integer' ),
 				'free_shipping' => array( 'type' => 'boolean' ),
 				'_bg'           => array( 'type' => 'string' ),
+				'_pt'           => array( 'type' => 'integer' ),
+				'_pb'           => array( 'type' => 'integer' ),
 				'layout'        => array( 'type' => 'string', 'enum' => array( '50-50', '33-67', '67-33', '33-33-33' ) ),
 				'cols'          => array(
 					'type'  => 'array',
@@ -166,6 +169,16 @@ class AI {
 				'subject'   => array( 'type' => 'string' ),
 				'preheader' => array( 'type' => 'string' ),
 				'blocks'    => array( 'type' => 'array', 'items' => $block ),
+				'settings'  => array(
+					'type'       => 'object',
+					'properties' => array(
+						'bg'         => array( 'type' => 'string', 'description' => 'Page background hex' ),
+						'content_bg' => array( 'type' => 'string', 'description' => 'Email body background hex' ),
+						'accent'     => array( 'type' => 'string', 'description' => 'Buttons and links hex' ),
+						'text_color' => array( 'type' => 'string', 'description' => 'Body text hex' ),
+						'font'       => array( 'type' => 'string', 'enum' => array( 'Helvetica, Arial, sans-serif', 'Georgia, "Times New Roman", serif', '"Trebuchet MS", Tahoma, sans-serif', 'Verdana, Geneva, sans-serif' ) ),
+					),
+				),
 			),
 			'$defs'                => array( 'inner' => $inner ),
 		);
@@ -181,9 +194,38 @@ class AI {
 		$lines = array();
 		foreach ( wc_get_products( array( 'status' => 'publish', 'limit' => 150, 'orderby' => 'popularity', 'return' => 'objects' ) ) as $p ) {
 			$price   = wp_strip_all_tags( html_entity_decode( wc_price( $p->get_price() ) ) );
-			$lines[] = $p->get_id() . ' | ' . $p->get_name() . ' | ' . $price . ( $p->is_in_stock() ? '' : ' | out of stock' );
+			$image   = $p->get_image_id() ? wp_get_attachment_image_url( $p->get_image_id(), 'large' ) : '';
+			$lines[] = $p->get_id() . ' | ' . $p->get_name() . ' | ' . $price . ' | ' . ( $p->is_in_stock() ? 'in stock' : 'out of stock' ) . ' | ' . ( $image ? $image : 'no image' );
 		}
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Recent Media Library images (banners, lifestyle shots) the AI may use.
+	 */
+	private static function media() {
+		$lines = array();
+		$posts = get_posts(
+			array(
+				'post_type'      => 'attachment',
+				'post_mime_type' => array( 'image/jpeg', 'image/png', 'image/webp', 'image/gif' ),
+				'post_status'    => 'inherit',
+				'posts_per_page' => 40,
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+			)
+		);
+		foreach ( $posts as $att ) {
+			$meta = wp_get_attachment_metadata( $att->ID );
+			$w    = isset( $meta['width'] ) ? (int) $meta['width'] : 0;
+			$h    = isset( $meta['height'] ) ? (int) $meta['height'] : 0;
+			if ( ( $w && $w < 400 ) || false !== strpos( (string) get_attached_file( $att->ID ), 'woocommerce-placeholder' ) ) {
+				continue; // Icons, thumbnails and the "no image" placeholder.
+			}
+			$alt     = trim( (string) get_post_meta( $att->ID, '_wp_attachment_image_alt', true ) );
+			$lines[] = wp_get_attachment_image_url( $att->ID, 'large' ) . ' | ' . ( $w && $h ? $w . 'x' . $h : '' ) . ' | ' . ( '' !== $alt ? $alt : $att->post_title );
+		}
+		return implode( "\n", array_slice( $lines, 0, 25 ) );
 	}
 
 	private static function system_prompt() {
@@ -193,32 +235,42 @@ class AI {
 		}
 		$brand = trim( (string) Settings::get( 'ai_brand' ) );
 
-		$prompt = 'You write marketing emails for the WooCommerce store "' . wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) . '" (' . home_url( '/' ) . '), and you lay them out in the store\'s drag-and-drop email builder. '
-			. "Respond with the subject line, the preview text (shown after the subject in the inbox, under 110 characters), and the email body as an ordered list of builder blocks.\n\n"
+		$d      = Renderer::default_settings();
+		$prompt = 'You are the creative director and copywriter for the WooCommerce store "' . wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) . '" (' . home_url( '/' ) . '). You design marketing emails in the store\'s drag-and-drop email builder: '
+			. "eye-catching, on-brand, the kind of email people actually stop and read. Respond with the subject line, the preview text (shown after the subject in the inbox, under 110 characters), an optional color scheme, and the email as an ordered list of builder blocks.\n\n"
 			. "Block types and the fields they use:\n"
-			. "- heading: text, size (px, 20-36), align\n"
-			. "- text: html (only <p>, <strong>, <em>, <a href>, <br>, <ul>/<ol>/<li>), align\n"
-			. "- logo: align (shows the store logo)\n"
+			. "- heading: text, size (px, 18-48), align, color (hex)\n"
+			. "- text: html, align. Allowed tags: <p>, <strong>, <em>, <a href>, <br>, <ul>/<ol>/<li>, <span style> and <div style>; inline styles may use color, background-color, font-size, font-weight, letter-spacing, text-transform, text-align, padding, border, border-radius (good for badges, ribbons, callout boxes and price tags)\n"
+			. "- logo: align (the store logo)\n"
 			. "- list: items (one per line), style (bullet|number|check), align\n"
-			. "- button: text, url, align\n"
-			. "- image: src, alt, url (only when the request gives an image URL)\n"
-			. "- divider; spacer: height (px)\n"
-			. "- products: ids (comma-separated product IDs from the catalog), columns (1-3), button_text\n"
-			. "- coupon: discount_type (percent|fixed_cart), amount, days (valid for), free_shipping, text (line shown above the code). A unique code is generated per recipient; refer to it with {coupon_code}, {coupon_amount}, {coupon_expiry}.\n"
-			. "- footer: html (replaces the default footer; usually omit it - an address and unsubscribe link are added automatically)\n"
+			. "- button: text, url, align, color (hex background)\n"
+			. "- image: src (an image URL from the catalog or image library below, or one given in the request; never invent URLs), alt, url (link when clicked), width (percent of the email width, 30-100)\n"
+			. "- divider: color; spacer: height (px)\n"
+			. "- products: ids (comma-separated catalog IDs), columns (1-3), button_text (renders each product's photo, name, price and a buy button)\n"
+			. "- coupon: discount_type (percent|fixed_cart), amount, days (valid for), free_shipping, text (line above the code). A unique code is generated per recipient; refer to it with {coupon_code}, {coupon_amount}, {coupon_expiry}.\n"
+			. "- footer: html (usually omit; an address and unsubscribe link are added automatically)\n"
 			. "- columns: layout (50-50|33-67|67-33|33-33-33), cols (one block list per column; no columns inside columns)\n"
-			. "Any block may set _bg (hex background color).\n\n"
+			. "Every block may also set _bg (hex background for its full-width band) and _pt/_pb (top/bottom padding in px, 0-120). Consecutive blocks with the same _bg read as one colored section.\n\n"
 			. "Merge tags you can put in text, headings and URLs:\n" . implode( "\n", $tags ) . "\n\n"
-			. "Guidelines: start with a logo block unless asked otherwise. Keep it scannable: one clear message, short paragraphs, a single main call to action (button url {shop_url} unless a specific link is given). "
-			. "Personalise with {first_name} only where it reads naturally with an empty name too. Only feature products from the catalog, by ID, and never invent prices, discounts, dates or claims the request does not give. "
-			. 'Write plain, confident copy, not hype.';
+			. "Design it like a professional email designer would:\n"
+			. "- Open with a bold hero band: the logo, then a big headline (36-44px) in a light color on a rich colored _bg with generous padding, a one-line subhead and a button, all in the same band. Follow it with a striking image (a product photo or library image) when one fits.\n"
+			. "- Add personality with design details made from the blocks above: an urgency ribbon (e.g. a narrow full-width band with small, bold, uppercase, letter-spaced text), a callout box for the offer, price or badge spans, a check-mark list of benefits, two-column sections pairing a product photo with copy.\n"
+			. "- Feature 2-4 relevant products with a products block or image + text columns whenever the email is about products or a sale. Add a coupon block when the request mentions a discount code.\n"
+			. "- Write 150-250 words of vivid, specific, benefit-led copy across the sections, a single clear call to action repeated at most twice (url {shop_url} unless a specific link is given), and a warm one-line sign-off.\n"
+			. "- Pick a cohesive palette that suits the occasion (e.g. greens for St. Patrick's Day, deep blue and gold for a premium launch) and return it in settings; keep text contrast readable (dark text on light backgrounds, white on dark). The store's current colors are accent " . $d['accent'] . ', page background ' . $d['bg'] . ", which you may keep or refine.\n"
+			. "- One or two fitting emoji in the subject or headline are fine; never in every line.\n"
+			. "- Personalise with {first_name} only where it reads naturally with an empty name too. Only feature products from the catalog, by ID, and only use image URLs listed below. Never invent prices, discounts, dates, testimonials or claims the request does not give.";
 
 		if ( '' !== $brand ) {
 			$prompt .= "\n\nStore rules (always follow):\n" . $brand;
 		}
 		$catalog = self::catalog();
 		if ( '' !== $catalog ) {
-			$prompt .= "\n\nCatalog (ID | name | price):\n" . $catalog;
+			$prompt .= "\n\nCatalog (ID | name | price | stock | photo URL):\n" . $catalog;
+		}
+		$media = self::media();
+		if ( '' !== $media ) {
+			$prompt .= "\n\nImage library (URL | size | description):\n" . $media;
 		}
 		// The block shape is given as instructions: as an enforced response format it is
 		// too large for the API's schema limits (every optional field multiplies it).
@@ -258,7 +310,7 @@ class AI {
 			'system'        => self::system_prompt(),
 			'messages'      => array( array( 'role' => 'user', 'content' => $user ) ),
 			'output_config' => array(
-				'effort' => 'low',
+				'effort' => 'medium',
 			),
 			// If the request is declined on policy grounds, the API retries it on a fallback model.
 			'fallbacks'     => 'default',
@@ -343,12 +395,15 @@ class AI {
 			}
 			return $blocks;
 		};
-		$design = Renderer::sanitize( array( 'blocks' => $fill( $out['blocks'], true ) ) );
+		$given  = isset( $out['settings'] ) && is_array( $out['settings'] ) ? array_intersect_key( $out['settings'], array_flip( array( 'bg', 'content_bg', 'accent', 'text_color', 'font' ) ) ) : array();
+		$design = Renderer::sanitize( array( 'blocks' => $fill( $out['blocks'], true ), 'settings' => $given ) );
 
 		return array(
 			'subject'   => sanitize_text_field( isset( $out['subject'] ) ? (string) $out['subject'] : '' ),
 			'preheader' => sanitize_text_field( isset( $out['preheader'] ) ? (string) $out['preheader'] : '' ),
 			'blocks'    => $design['blocks'],
+			// Only the colors the AI chose, after sanitizing (invalid ones fall back and are dropped).
+			'settings'  => array_intersect_key( $design['settings'], array_filter( $given ) ),
 		);
 	}
 

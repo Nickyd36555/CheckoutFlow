@@ -535,6 +535,11 @@
 			}
 		} else {
 			design.blocks = clone( blocks );
+			if ( out.settings && typeof out.settings === 'object' ) {
+				Object.keys( out.settings ).forEach( function ( k ) {
+					design.settings[ k ] = out.settings[ k ];
+				} );
+			}
 			sel = null;
 			changed( { record: true, preview: true } );
 			renderSide();

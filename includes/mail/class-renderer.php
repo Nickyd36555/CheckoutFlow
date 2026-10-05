@@ -299,6 +299,22 @@ class Renderer {
 		return $blocks;
 	}
 
+	/**
+	 * @param string $hex Color like #0b3d2e.
+	 * @return bool Dark enough that white text reads better.
+	 */
+	public static function is_dark( $hex ) {
+		$hex = ltrim( (string) $hex, '#' );
+		if ( 3 === strlen( $hex ) ) {
+			$hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+		}
+		if ( 6 !== strlen( $hex ) || ! ctype_xdigit( $hex ) ) {
+			return false;
+		}
+		list( $r, $g, $b ) = array_map( 'hexdec', str_split( $hex, 2 ) );
+		return ( 0.299 * $r + 0.587 * $g + 0.114 * $b ) < 140;
+	}
+
 	public static function allowed_html() {
 		return array(
 			'p'      => array( 'style' => true ),
@@ -485,7 +501,9 @@ class Renderer {
 			case 'logo':
 				$src = $b['src'] ? $b['src'] : ( $s['logo'] ? $s['logo'] : self::site_logo() );
 				if ( ! $src ) {
-					return sprintf( '<tr><td style="padding:16px %1$dpx;text-align:%2$s;font-size:24px;font-weight:700;color:%3$s;">%4$s</td></tr>', $px, esc_attr( $align ), esc_attr( $s['text_color'] ), esc_html( get_bloginfo( 'name' ) ) );
+					// Store name instead of a logo: keep it readable on a dark band.
+					$color = ! empty( $b['_bg'] ) && self::is_dark( $b['_bg'] ) ? '#ffffff' : $s['text_color'];
+					return sprintf( '<tr><td style="padding:16px %1$dpx;text-align:%2$s;font-size:24px;font-weight:700;color:%3$s;">%4$s</td></tr>', $px, esc_attr( $align ), esc_attr( $color ), esc_html( get_bloginfo( 'name' ) ) );
 				}
 				$w   = max( 40, min( 600, (int) $b['width'] ) );
 				$img = sprintf( '<img src="%1$s" alt="%2$s" width="%3$d" style="display:inline-block;width:%3$dpx;max-width:100%%;height:auto;border:0;">', esc_url( $src ), esc_attr( get_bloginfo( 'name' ) ), $w );
