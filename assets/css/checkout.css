@@ -723,3 +723,40 @@ body.cf-checkout-modern .cf-modern .form-row.cf-custom-field select {
 }
 @keyframes cf-flash { 0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cf-accent, #2563eb) 45%, transparent); } 100% { box-shadow: 0 0 0 3px transparent; } }
 .cf-modern .cf-col-summary.cf-flash { animation: cf-flash 1.2s ease-out; }
+
+/* Checkout notices ("Payment was not completed." etc.): centered, icon beside the text. */
+body.cf-checkout .woocommerce-error,
+body.cf-checkout .woocommerce-message,
+body.cf-checkout .woocommerce-info {
+	display: flex !important;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 8px 10px;
+	padding: 14px 20px !important;
+	text-align: center !important;
+	font-weight: 600;
+}
+body.cf-checkout .woocommerce-error::before,
+body.cf-checkout .woocommerce-message::before,
+body.cf-checkout .woocommerce-info::before {
+	position: static !important;
+	display: inline-block;
+	margin: 0 !important;
+	transform: none !important;
+}
+body.cf-checkout .woocommerce-error > li,
+body.cf-checkout .woocommerce-message > li,
+body.cf-checkout .woocommerce-info > li {
+	display: flex !important;
+	justify-content: center;
+	width: auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	text-align: center !important;
+}
+body.cf-checkout .woocommerce-error,
+body.cf-checkout .woocommerce-info { list-style: none; }
+body.cf-checkout .woocommerce-message .button,
+body.cf-checkout .woocommerce-info .button { order: 2; float: none !important; margin: 0 !important; }
+body.cf-checkout .woocommerce-error:has(> li + li) { flex-direction: column; gap: 4px; }

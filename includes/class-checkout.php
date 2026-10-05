@@ -368,6 +368,7 @@ class Checkout {
 				'couponRemoved' => __( 'Coupon removed.', 'checkoutflow' ),
 				'couponError'   => __( 'That coupon code could not be applied.', 'checkoutflow' ),
 				'removeCoupon'  => __( 'Remove', 'checkoutflow' ),
+				'required'      => Checkout_Fields::required_ids(),
 			)
 		);
 	}

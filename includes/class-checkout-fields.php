@@ -343,7 +343,41 @@ class Checkout_Fields {
 			$fields[ $f['key'] ]['priority'] = ( $i + 1 ) * 10;
 			$fields[ $f['key'] ]             = self::set_class( $fields[ $f['key'] ], $classes[ $f['key'] ] );
 		}
+		// Newer WooCommerce lists phone here too, and its address script resets the phone's
+		// required state from this default whenever the country loads.
+		$phone = self::field( 'phone' );
+		if ( $phone && isset( $fields['phone'] ) ) {
+			if ( ! $phone['enabled'] ) {
+				unset( $fields['phone'] );
+			} else {
+				$fields['phone'] = self::apply_props( $fields['phone'], $phone );
+			}
+		}
 		return $fields;
+	}
+
+	/**
+	 * Field wrapper IDs that must show as required on the checkout, for the script that
+	 * restores the red asterisk after WooCommerce's address script runs.
+	 *
+	 * @return string[]
+	 */
+	public static function required_ids() {
+		if ( ! function_exists( 'WC' ) || ! WC()->checkout() ) {
+			return array();
+		}
+		// Country-specific rules (state, postcode…) stay with WooCommerce's script.
+		$locale = array( 'address_1', 'address_2', 'state', 'postcode', 'city', 'country' );
+		$ids    = array();
+		foreach ( WC()->checkout()->get_checkout_fields() as $group => $fields ) {
+			foreach ( (array) $fields as $key => $field ) {
+				$base = preg_replace( '/^(billing|shipping)_/', '', $key );
+				if ( ! empty( $field['required'] ) && ! in_array( $base, $locale, true ) && ( ! isset( $field['type'] ) || 'cf_paragraph' !== $field['type'] ) ) {
+					$ids[] = $key . '_field';
+				}
+			}
+		}
+		return $ids;
 	}
 
 	/**
@@ -358,7 +392,12 @@ class Checkout_Fields {
 			return $locales;
 		}
 		$orig = self::originals()['address'];
-		foreach ( self::address_rows() as $f ) {
+		$rows = self::address_rows();
+		$ph   = self::field( 'phone' );
+		if ( $ph ) {
+			$rows[] = $ph;
+		}
+		foreach ( $rows as $f ) {
 			$o       = isset( $orig[ $f['key'] ] ) ? $orig[ $f['key'] ] : array();
 			$label   = '' !== $f['label'] && ( ! isset( $o['label'] ) || wp_strip_all_tags( $o['label'] ) !== $f['label'] );
 			$req     = 'country' !== $f['key'] && ( ! empty( $o['required'] ) ) !== $f['required'];

@@ -255,6 +255,28 @@
 
 	/* ---------- floating labels ---------- */
 
+	// WooCommerce's address script rewrites "required" markers when the country loads; put the
+	// red asterisk back on every field this store requires.
+	function markRequired() {
+		( T.required || [] ).forEach( function ( id ) {
+			var row = document.getElementById( id );
+			if ( ! row ) {
+				return;
+			}
+			var label = row.querySelector( 'label:not(.checkbox):not(.woocommerce-form__label-for-checkbox)' );
+			row.classList.add( 'validate-required' );
+			if ( ! label ) {
+				return;
+			}
+			label.querySelectorAll( '.optional' ).forEach( function ( n ) {
+				n.remove();
+			} );
+			if ( ! label.querySelector( '.required' ) ) {
+				label.insertAdjacentHTML( 'beforeend', '&nbsp;<span class="required" aria-hidden="true">*</span>' );
+			}
+		} );
+	}
+
 	function floatLabels() {
 		$( 'form.cf-modern .form-row' ).each( function () {
 			var $row = $( this );
@@ -319,15 +341,20 @@
 		decorateAddons();
 		collapseAddress2();
 		syncBilling();
+		markRequired();
 		floatLabels();
 		alignRoute();
-		// Browser autofill doesn't fire input events.
-		setTimeout( floatLabels, 600 );
+		// Browser autofill doesn't fire input events; WooCommerce's address script also runs late.
+		setTimeout( function () {
+			markRequired();
+			floatLabels();
+		}, 600 );
 	} );
 	$body.on( 'updated_checkout', showCouponMsg );
 	$body.on( 'updated_checkout country_to_state_changed', function () {
 		decorateAddons();
 		collapseAddress2();
+		markRequired();
 		floatLabels();
 		alignRoute();
 	} );
