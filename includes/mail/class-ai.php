@@ -220,6 +220,10 @@ class AI {
 		if ( '' !== $catalog ) {
 			$prompt .= "\n\nCatalog (ID | name | price):\n" . $catalog;
 		}
+		// The block shape is given as instructions: as an enforced response format it is
+		// too large for the API's schema limits (every optional field multiplies it).
+		$prompt .= "\n\nReply with only a JSON object, no other text or code fences, matching this JSON Schema:\n" . wp_json_encode( self::schema() )
+			. "\nOmit fields a block doesn't use. Example: {\"subject\":\"…\",\"preheader\":\"…\",\"blocks\":[{\"type\":\"logo\"},{\"type\":\"heading\",\"text\":\"…\",\"size\":28,\"align\":\"center\"},{\"type\":\"text\",\"html\":\"<p>…</p>\"},{\"type\":\"button\",\"text\":\"Shop now\",\"url\":\"{shop_url}\",\"align\":\"center\"}]}";
 		return $prompt;
 	}
 
@@ -255,7 +259,6 @@ class AI {
 			'messages'      => array( array( 'role' => 'user', 'content' => $user ) ),
 			'output_config' => array(
 				'effort' => 'low',
-				'format' => array( 'type' => 'json_schema', 'schema' => self::schema() ),
 			),
 			// If the request is declined on policy grounds, the API retries it on a fallback model.
 			'fallbacks'     => 'default',
@@ -283,11 +286,32 @@ class AI {
 				$text .= $part['text'];
 			}
 		}
-		$out = json_decode( $text, true );
+		$out = self::parse_json( $text );
 		if ( ! is_array( $out ) || ! isset( $out['blocks'] ) ) {
 			return new \WP_Error( 'cf_ai_parse', __( 'The AI reply could not be read. Please try again.', 'checkoutflow' ) );
 		}
 		return self::clean( $out );
+	}
+
+	/**
+	 * The JSON object in a reply, tolerating code fences or a stray sentence around it.
+	 *
+	 * @param string $text Reply text.
+	 * @return array|null
+	 */
+	public static function parse_json( $text ) {
+		$text = trim( (string) $text );
+		$out  = json_decode( $text, true );
+		if ( is_array( $out ) ) {
+			return $out;
+		}
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		if ( false === $start || false === $end || $end <= $start ) {
+			return null;
+		}
+		$out = json_decode( substr( $text, $start, $end - $start + 1 ), true );
+		return is_array( $out ) ? $out : null;
 	}
 
 	/**
