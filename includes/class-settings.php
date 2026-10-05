@@ -576,7 +576,13 @@ class Settings {
 			'fields_heading'         => array(
 				'type'  => 'heading',
 				'label' => __( 'Checkout fields', 'checkoutflow' ),
-				'desc'  => __( 'Rename, reorder, require or hide fields, and add your own (e.g. date of birth) in CheckoutFlow → Checkout Fields.', 'checkoutflow' ),
+				'desc'  => __( 'Rename, reorder, require or hide fields, and add your own (e.g. date of birth).', 'checkoutflow' ),
+			),
+			'fields_editor'          => array(
+				'type'  => 'link',
+				'label' => __( 'Field editor', 'checkoutflow' ),
+				'text'  => __( 'Open the checkout field editor', 'checkoutflow' ),
+				'url'   => admin_url( 'admin.php?page=checkoutflow-fields' ),
 			),
 			'checkout_email_first'   => array(
 				'type'    => 'checkbox',
