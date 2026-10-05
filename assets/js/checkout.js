@@ -220,6 +220,25 @@
 
 	/* ---------- mobile summary toggle ---------- */
 
+	// The header cart icon on checkout: show the order summary instead of leaving for the cart page.
+	document.addEventListener( 'click', function ( e ) {
+		var link = e.target.closest && e.target.closest( '.cf-cart-link, .cf-open-cart' );
+		var summary = document.querySelector( '.cf-col-summary' );
+		if ( ! link || ! summary ) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		var toggle = summary.querySelector( '.cf-summary-toggle' );
+		if ( toggle && toggle.offsetParent !== null && toggle.getAttribute( 'aria-expanded' ) !== 'true' ) {
+			toggle.click();
+		}
+		summary.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+		summary.classList.remove( 'cf-flash' );
+		void summary.offsetWidth;
+		summary.classList.add( 'cf-flash' );
+	}, true );
+
 	$body.on( 'click', '.cf-summary-toggle', function () {
 		var $aside = $( this ).closest( '.cf-col-summary' ).toggleClass( 'is-open' );
 		var open = $aside.hasClass( 'is-open' );

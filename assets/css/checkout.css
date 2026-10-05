@@ -721,3 +721,5 @@ body.cf-checkout-modern .cf-modern .form-row.cf-custom-field select {
 	appearance: none;
 	background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23444' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 14px center;
 }
+@keyframes cf-flash { 0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cf-accent, #2563eb) 45%, transparent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+.cf-modern .cf-col-summary.cf-flash { animation: cf-flash 1.2s ease-out; }

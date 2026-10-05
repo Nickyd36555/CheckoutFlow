@@ -539,7 +539,8 @@ class Settings {
 			'checkout_skip_cart'     => array(
 				'type'    => 'checkbox',
 				'label'   => __( 'Skip the cart page (send customers straight to checkout)', 'checkoutflow' ),
-				'default' => false,
+				'default' => true,
+				'desc'    => __( 'The side cart and checkout summary already show everything the cart page does. An empty cart page goes to your "Continue shopping" page instead.', 'checkoutflow' ),
 			),
 			'checkout_coupon'        => array(
 				'type'    => 'select',
