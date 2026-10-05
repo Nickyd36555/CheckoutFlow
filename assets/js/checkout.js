@@ -211,6 +211,11 @@
 		syncing = false;
 	}
 
+	// One phone box: keep the hidden billing phone (read by some payment plugins) in step.
+	$( document ).on( 'input change', '#shipping_phone', function () {
+		$( '.cf-phone-mirror' ).val( $( this ).val() );
+	} );
+
 	$different.on( 'change', function () {
 		$( '.cf-billing-address' ).prop( 'hidden', ! differentBilling() );
 		syncBilling();

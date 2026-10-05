@@ -43,6 +43,7 @@ class Checkout {
 			add_filter( 'woocommerce_update_order_review_fragments', array( $this, 'review_fragments' ) );
 			add_filter( 'woocommerce_checkout_posted_data', array( $this, 'copy_shipping_to_billing' ) );
 			add_filter( 'woocommerce_checkout_fields', array( $this, 'one_phone' ), 25 );
+			add_action( 'woocommerce_before_checkout_process', array( $this, 'mirror_phone_post' ), 1 );
 			add_action( 'woocommerce_after_checkout_validation', array( $this, 'drop_copied_billing_errors' ), 999, 2 );
 			add_filter( 'woocommerce_checkout_required_field_notice', array( $this, 'plain_required_notice' ), 10, 3 );
 			add_action( 'wc_ajax_cf_checkout_qty', array( $this, 'ajax_qty' ) );
@@ -258,6 +259,25 @@ class Checkout {
 			unset( $fields['shipping']['shipping_phone'] );
 		}
 		return $fields;
+	}
+
+	/**
+	 * Payment plugins often read $_POST['billing_phone'] directly (eDebit Direct: "Phone
+	 * number is required…"). With one phone box, fill whichever side is missing before
+	 * WooCommerce and the gateway look at the submission.
+	 */
+	public function mirror_phone_post() {
+		// phpcs:disable WordPress.Security.NonceVerification -- WooCommerce verifies the checkout nonce in this request.
+		$billing  = isset( $_POST['billing_phone'] ) ? trim( (string) wp_unslash( $_POST['billing_phone'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$shipping = isset( $_POST['shipping_phone'] ) ? trim( (string) wp_unslash( $_POST['shipping_phone'] ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		if ( '' === $billing && '' !== $shipping ) {
+			$_POST['billing_phone']    = wp_slash( $shipping );
+			$_REQUEST['billing_phone'] = wp_slash( $shipping );
+		} elseif ( '' === $shipping && '' !== $billing ) {
+			$_POST['shipping_phone']    = wp_slash( $billing );
+			$_REQUEST['shipping_phone'] = wp_slash( $billing );
+		}
+		// phpcs:enable
 	}
 
 	/**

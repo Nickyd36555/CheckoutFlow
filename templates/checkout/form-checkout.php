@@ -146,6 +146,10 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 								<div class="woocommerce-billing-fields__field-wrapper"><?php $cf_render( $cf_address ); ?></div>
 							</div>
 							<div class="cf-fields cf-billing-extra"><?php $cf_render( $cf_phone ); ?><?php $cf_render( $cf_extra ); ?><?php $cf_render( $cf_in( 'address' ) ); ?></div>
+							<?php if ( $cf_phone && ! isset( $cf_billing['billing_phone'] ) ) : ?>
+								<?php // Payment plugins (e.g. eDebit Direct) read the billing phone straight from the form: mirror the one phone box. ?>
+								<input type="hidden" name="billing_phone" id="billing_phone" class="cf-phone-mirror" value="<?php echo esc_attr( $checkout->get_value( 'billing_phone' ) ? $checkout->get_value( 'billing_phone' ) : $checkout->get_value( 'shipping_phone' ) ); ?>">
+							<?php endif; ?>
 							<?php do_action( 'woocommerce_after_checkout_billing_form', $checkout ); ?>
 						</section>
 					<?php else : ?>
