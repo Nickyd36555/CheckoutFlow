@@ -42,6 +42,9 @@ class Checkout {
 			add_filter( 'woocommerce_locate_template', array( $this, 'locate_template' ), 20, 2 );
 			add_filter( 'woocommerce_update_order_review_fragments', array( $this, 'review_fragments' ) );
 			add_filter( 'woocommerce_checkout_posted_data', array( $this, 'copy_shipping_to_billing' ) );
+			add_filter( 'woocommerce_checkout_fields', array( $this, 'one_phone' ), 25 );
+			add_action( 'woocommerce_after_checkout_validation', array( $this, 'drop_copied_billing_errors' ), 999, 2 );
+			add_filter( 'woocommerce_checkout_required_field_notice', array( $this, 'plain_required_notice' ), 10, 3 );
 			add_action( 'wc_ajax_cf_checkout_qty', array( $this, 'ajax_qty' ) );
 			add_filter( 'woocommerce_default_address_fields', array( $this, 'address_order' ), 20 );
 			$this->relocate_route_widget();
@@ -208,6 +211,18 @@ class Checkout {
 	 * Shipping-first form: billing = shipping unless "Use a different billing address" is ticked.
 	 */
 	public function copy_shipping_to_billing( $data ) {
+		// One phone box on the form: copy it to whichever side doesn't have its own.
+		$phone = '';
+		foreach ( array( 'shipping_phone', 'billing_phone' ) as $k ) {
+			if ( '' === $phone && isset( $data[ $k ] ) && '' !== (string) $data[ $k ] ) {
+				$phone = $data[ $k ];
+			}
+		}
+		if ( '' !== $phone ) {
+			$data['billing_phone']  = isset( $data['billing_phone'] ) && '' !== (string) $data['billing_phone'] ? $data['billing_phone'] : $phone;
+			$data['shipping_phone'] = isset( $data['shipping_phone'] ) && '' !== (string) $data['shipping_phone'] ? $data['shipping_phone'] : $phone;
+		}
+
 		// phpcs:disable WordPress.Security.NonceVerification -- runs inside WooCommerce's nonce-checked checkout.
 		if ( empty( $_POST['cf_shipping_first'] ) || ! empty( $_POST['cf_different_billing'] ) ) {
 			return $data;
@@ -223,6 +238,74 @@ class Checkout {
 		}
 		$data['ship_to_different_address'] = true;
 		return $data;
+	}
+
+	/**
+	 * Customers enter one phone number. The shipping-first form shows the shipping phone
+	 * (billing gets a copy); the billing-first form shows the billing phone (shipping gets
+	 * a copy). The twin is removed so it is never validated as a second required field.
+	 *
+	 * @param array $fields Checkout fields.
+	 * @return array
+	 */
+	public function one_phone( $fields ) {
+		if ( ! WC()->cart ) {
+			return $fields;
+		}
+		if ( self::shipping_first() && isset( $fields['shipping']['shipping_phone'] ) ) {
+			unset( $fields['billing']['billing_phone'] );
+		} elseif ( isset( $fields['billing']['billing_phone'] ) ) {
+			unset( $fields['shipping']['shipping_phone'] );
+		}
+		return $fields;
+	}
+
+	/**
+	 * Shipping-first form without a separate billing address: the billing fields are hidden
+	 * copies, so their "required" errors only repeat the shipping ones.
+	 *
+	 * @param array     $data   Posted data.
+	 * @param \WP_Error $errors Errors.
+	 */
+	public function drop_copied_billing_errors( $data, $errors ) {
+		// phpcs:disable WordPress.Security.NonceVerification -- runs inside WooCommerce's nonce-checked checkout.
+		if ( empty( $_POST['cf_shipping_first'] ) || ! empty( $_POST['cf_different_billing'] ) ) {
+			return;
+		}
+		// phpcs:enable
+		foreach ( self::ADDRESS_KEYS as $k ) {
+			$errors->remove( 'billing_' . $k . '_required' );
+			$errors->remove( 'billing_' . $k . '_validation' );
+		}
+	}
+
+	/**
+	 * "Shipping Phone is a required field." → "Phone is a required field." where the form
+	 * only has one of that field (email, phone, or every address field in the
+	 * shipping-first form without a separate billing address).
+	 *
+	 * @param string $notice Notice HTML.
+	 * @param string $label  Field label with WooCommerce's Billing/Shipping prefix.
+	 * @param string $key    Field key.
+	 * @return string
+	 */
+	public function plain_required_notice( $notice, $label = '', $key = '' ) {
+		$base = preg_replace( '/^(billing|shipping)_/', '', (string) $key );
+		// phpcs:disable WordPress.Security.NonceVerification -- runs inside WooCommerce's nonce-checked checkout.
+		$single = in_array( $base, array( 'email', 'phone' ), true ) || ( ! empty( $_POST['cf_shipping_first'] ) && empty( $_POST['cf_different_billing'] ) );
+		// phpcs:enable
+		if ( ! $single || '' === (string) $label ) {
+			return $notice;
+		}
+		$plain = (string) $label;
+		foreach ( array( _x( 'Shipping %s', 'checkout-validation', 'woocommerce' ), _x( 'Billing %s', 'checkout-validation', 'woocommerce' ) ) as $format ) {
+			$parts = explode( '%s', $format );
+			if ( 2 === count( $parts ) && '' !== $parts[0] && 0 === strpos( $plain, $parts[0] ) ) {
+				$plain = substr( $plain, strlen( $parts[0] ) );
+			}
+		}
+		/* translators: %s: field name */
+		return sprintf( __( '%s is a required field.', 'woocommerce' ), '<strong>' . esc_html( $plain ) . '</strong>' );
 	}
 
 	/**
