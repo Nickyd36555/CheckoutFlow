@@ -31,13 +31,13 @@ class AI {
 
 	/**
 	 * @param array $args brief, current, mode.
-	 * @return string Job ID.
+	 * @return string|\WP_Error Job ID.
 	 */
 	public static function start_job( $args ) {
 		$id    = wp_generate_uuid4();
 		$token = wp_generate_password( 32, false );
 		self::cleanup_jobs();
-		self::put_job(
+		$saved = self::put_job(
 			$id,
 			array(
 				'status'  => 'pending',
@@ -47,6 +47,11 @@ class AI {
 				'created' => time(),
 			)
 		);
+		if ( ! $saved ) {
+			global $wpdb;
+			/* translators: %s: database error */
+			return new \WP_Error( 'cf_ai_store', sprintf( __( 'Could not start the AI request (database error: %s).', 'checkoutflow' ), $wpdb->last_error ? $wpdb->last_error : __( 'unknown', 'checkoutflow' ) ) );
+		}
 		wp_remote_post(
 			admin_url( 'admin-ajax.php' ),
 			array(
@@ -63,14 +68,17 @@ class AI {
 		global $wpdb;
 		// Direct writes: update_option() may skip the write when a stale cached copy matches.
 		$name   = self::JOB . sanitize_key( $id );
-		$value  = maybe_serialize( $job );
+		// JSON with \u escapes is plain ASCII, so emoji in the brief or the email can't make
+		// the write fail on databases that don't store 4-byte characters.
+		$value  = wp_json_encode( $job );
 		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name = %s", $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		if ( $exists ) {
-			$wpdb->update( $wpdb->options, array( 'option_value' => $value ), array( 'option_name' => $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$ok = false !== $wpdb->update( $wpdb->options, array( 'option_value' => $value ), array( 'option_name' => $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		} else {
-			$wpdb->insert( $wpdb->options, array( 'option_name' => $name, 'option_value' => $value, 'autoload' => 'off' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$ok = false !== $wpdb->insert( $wpdb->options, array( 'option_name' => $name, 'option_value' => $value, 'autoload' => 'off' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		}
 		wp_cache_delete( $name, 'options' );
+		return $ok && false !== $value;
 	}
 
 	/**
@@ -80,7 +88,7 @@ class AI {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT 200", $wpdb->esc_like( self::JOB ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		foreach ( (array) $rows as $row ) {
-			$job = maybe_unserialize( $row->option_value );
+			$job = json_decode( $row->option_value, true );
 			if ( ! is_array( $job ) || empty( $job['created'] ) || $job['created'] < time() - HOUR_IN_SECONDS ) {
 				$wpdb->delete( $wpdb->options, array( 'option_name' => $row->option_name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				wp_cache_delete( $row->option_name, 'options' );
@@ -93,7 +101,7 @@ class AI {
 		// Read straight from the database: some hosts' object caches drop or serve stale
 		// copies of these short-lived rows between the editor's requests.
 		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::JOB . sanitize_key( $id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$job = null === $raw ? null : maybe_unserialize( $raw );
+		$job = null === $raw ? null : json_decode( $raw, true );
 		return is_array( $job ) ? $job : null;
 	}
 

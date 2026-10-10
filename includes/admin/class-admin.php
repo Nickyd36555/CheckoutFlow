@@ -727,6 +727,9 @@ class Admin {
 			wp_send_json_error( array( 'message' => __( 'Add your Anthropic API key in CheckoutFlow → Settings → Email & SMTP to use the AI writer.', 'checkoutflow' ) ), 400 );
 		}
 		$job = AI::start_job( array( 'brief' => $brief, 'current' => array( 'subject' => $subj, 'blocks' => $cur['blocks'] ), 'mode' => $mode ) );
+		if ( is_wp_error( $job ) ) {
+			wp_send_json_error( array( 'message' => $job->get_error_message() ), 500 );
+		}
 		wp_send_json_success( array( 'job' => $job ) );
 	}
 
