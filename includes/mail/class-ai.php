@@ -36,16 +36,16 @@ class AI {
 	public static function start_job( $args ) {
 		$id    = wp_generate_uuid4();
 		$token = wp_generate_password( 32, false );
-		set_transient(
-			self::JOB . $id,
+		self::cleanup_jobs();
+		self::put_job(
+			$id,
 			array(
 				'status'  => 'pending',
 				'user'    => get_current_user_id(),
 				'token'   => wp_hash( $token ),
 				'args'    => $args,
 				'created' => time(),
-			),
-			HOUR_IN_SECONDS
+			)
 		);
 		wp_remote_post(
 			admin_url( 'admin-ajax.php' ),
@@ -59,8 +59,41 @@ class AI {
 		return $id;
 	}
 
+	private static function put_job( $id, $job ) {
+		global $wpdb;
+		// Direct writes: update_option() may skip the write when a stale cached copy matches.
+		$name   = self::JOB . sanitize_key( $id );
+		$value  = maybe_serialize( $job );
+		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name = %s", $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( $exists ) {
+			$wpdb->update( $wpdb->options, array( 'option_value' => $value ), array( 'option_name' => $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		} else {
+			$wpdb->insert( $wpdb->options, array( 'option_name' => $name, 'option_value' => $value, 'autoload' => 'off' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		}
+		wp_cache_delete( $name, 'options' );
+	}
+
+	/**
+	 * Remove finished or abandoned jobs older than an hour.
+	 */
+	private static function cleanup_jobs() {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT 200", $wpdb->esc_like( self::JOB ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		foreach ( (array) $rows as $row ) {
+			$job = maybe_unserialize( $row->option_value );
+			if ( ! is_array( $job ) || empty( $job['created'] ) || $job['created'] < time() - HOUR_IN_SECONDS ) {
+				$wpdb->delete( $wpdb->options, array( 'option_name' => $row->option_name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				wp_cache_delete( $row->option_name, 'options' );
+			}
+		}
+	}
+
 	public static function job( $id ) {
-		$job = get_transient( self::JOB . sanitize_key( $id ) );
+		global $wpdb;
+		// Read straight from the database: some hosts' object caches drop or serve stale
+		// copies of these short-lived rows between the editor's requests.
+		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::JOB . sanitize_key( $id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$job = null === $raw ? null : maybe_unserialize( $raw );
 		return is_array( $job ) ? $job : null;
 	}
 
@@ -76,7 +109,7 @@ class AI {
 			return;
 		}
 		$job['status'] = 'running';
-		set_transient( self::JOB . $id, $job, HOUR_IN_SECONDS );
+		self::put_job( $id, $job );
 		if ( function_exists( 'ignore_user_abort' ) ) {
 			ignore_user_abort( true );
 		}
@@ -84,7 +117,7 @@ class AI {
 		$job['status'] = is_wp_error( $out ) ? 'error' : 'done';
 		$job['result'] = is_wp_error( $out ) ? array( 'message' => $out->get_error_message() ) : $out;
 		unset( $job['args'] );
-		set_transient( self::JOB . $id, $job, HOUR_IN_SECONDS );
+		self::put_job( $id, $job );
 	}
 
 	/**
