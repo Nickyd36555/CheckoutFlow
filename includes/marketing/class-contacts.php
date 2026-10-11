@@ -58,7 +58,13 @@ class Contacts {
 		}
 		$existing = self::get_by_email( $email );
 		$now      = DB::now();
-		$fields   = array_intersect_key( $data, array_flip( array( 'first_name', 'last_name', 'user_id' ) ) );
+		$fields   = array_intersect_key( $data, array_flip( array( 'first_name', 'last_name', 'user_id', 'phone', 'country' ) ) );
+		$fields   = array_map(
+			static function ( $v ) {
+				return is_string( $v ) ? substr( sanitize_text_field( $v ), 0, 100 ) : $v;
+			},
+			$fields
+		);
 		$fields   = array_filter( $fields );
 
 		if ( ! $existing ) {
@@ -102,6 +108,25 @@ class Contacts {
 		}
 		DB::update( 'contacts', $c['id'], array( 'status' => 'subscribed', 'unsubscribed_at' => null, 'updated_at' => DB::now() ) );
 		do_action( 'checkoutflow_contact_subscribed', $c['email'] );
+	}
+
+	/**
+	 * Add tags (e.g. FunnelKit tags/lists, "chat") to a contact, keeping existing ones.
+	 *
+	 * @param string   $email Email.
+	 * @param string[] $tags  Tag names.
+	 */
+	public static function add_tags( $email, $tags ) {
+		$c    = self::get_by_email( $email );
+		$tags = array_filter( array_map( 'sanitize_text_field', (array) $tags ), 'strlen' );
+		if ( ! $c || ! $tags ) {
+			return;
+		}
+		$have = array_filter( array_map( 'trim', explode( ',', (string) $c['tags'] ) ), 'strlen' );
+		$all  = array_values( array_unique( array_merge( $have, str_replace( ',', ' ', $tags ) ) ) );
+		if ( count( $all ) !== count( $have ) ) {
+			DB::update( 'contacts', $c['id'], array( 'tags' => implode( ', ', $all ), 'updated_at' => DB::now() ) );
+		}
 	}
 
 	public static function unsubscribe( $email ) {

@@ -120,3 +120,41 @@
 		} );
 	} );
 } )();
+
+/* Contacts: drive the FunnelKit import while the page is open and show progress. */
+( function () {
+	var box = document.querySelector( '.cf-fk-import[data-running="1"]' );
+	var A = window.checkoutflowAdmin;
+	if ( ! box || ! A ) {
+		return;
+	}
+	var status = box.querySelector( '.cf-fk-status' );
+	var bar = box.querySelector( '.cf-progress span' );
+	function step() {
+		var fd = new FormData();
+		fd.append( 'action', 'cf_fk_step' );
+		fd.append( 'nonce', A.nonce );
+		fetch( A.ajax, { method: 'POST', body: fd, credentials: 'same-origin' } ).then( function ( r ) {
+			return r.json();
+		} ).then( function ( r ) {
+			if ( ! r || ! r.success ) {
+				return setTimeout( step, 5000 );
+			}
+			var s = r.data;
+			if ( status ) {
+				status.textContent = 'Importing… ' + Number( s.done ).toLocaleString() + ' of ' + Number( s.total ).toLocaleString() + ' contacts';
+			}
+			if ( bar && s.total ) {
+				bar.style.width = Math.min( 100, Math.round( s.done / s.total * 100 ) ) + '%';
+			}
+			if ( s.running ) {
+				setTimeout( step, 400 );
+			} else {
+				window.location.reload();
+			}
+		} ).catch( function () {
+			setTimeout( step, 5000 );
+		} );
+	}
+	step();
+}() );

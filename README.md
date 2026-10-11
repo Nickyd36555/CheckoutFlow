@@ -131,6 +131,20 @@ Emails and the thank-you page are designed in the same full-screen editor:
 - Drag blocks onto the preview, drag a selected block by its handle to move it (also into or out of columns), and click a heading or text block to type in place. Every block has background and spacing settings.
 - Undo/redo (Ctrl+Z / Ctrl+Shift+Z), Delete to remove the selected block, Ctrl+S to save, desktop/mobile preview, send test. Changes autosave a few seconds after you stop editing.
 
+## Contacts: FunnelKit import and automatic capture
+
+**Import from FunnelKit** (Contacts page) reads FunnelKit Automations' own tables, which stay in the database after FunnelKit is deactivated. It brings over email, names, phone, country, tags and lists, and the original sign-up date. It runs in the background, about 3,000 contacts in under a minute. Subscription status is kept: FunnelKit unsubscribes, bounces and complaints are never emailed, and nobody is re-subscribed. It can be run again safely.
+
+New people are added automatically:
+
+- **Customers:** every order.
+- **Shoppers who type their email at checkout:** cart recovery.
+- **New WordPress / WooCommerce accounts.**
+- **Website forms:** Contact Form 7, WPForms, Elementor Pro, Gravity Forms and Fluent Forms. Turn this off in Settings → Marketing.
+- **Chat widgets and other tools** (Apollo, Tidio, Zapier, Make…) via a webhook. `POST /wp-json/checkoutflow/v1/contacts` with header `X-CheckoutFlow-Key` (shown on the Contacts page) and fields `email`, `first_name`/`last_name` or `name`, `phone`, `tags`, `source`, `subscribed`.
+
+Captured people have no marketing consent ("No consent") unless they opted in, so subscriber-only campaigns stay compliant.
+
 ## Checkout fields
 
 **CheckoutFlow → Checkout Fields** edits the checkout form:

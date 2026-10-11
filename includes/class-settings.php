@@ -42,6 +42,7 @@ class Settings {
 		'cart_enabled'     => true,
 		'recovery_enabled' => true,
 		'optin_enabled'    => true,
+		'capture_forms'    => true,
 		'ty_enabled'       => true,
 		'smtp_enabled'     => false,
 		'smtp_all_mail'    => true,
@@ -993,6 +994,12 @@ class Settings {
 				'label'   => __( 'Pre-check the box', 'checkoutflow' ),
 				'default' => false,
 				'desc'    => __( 'Pre-checked boxes are not valid consent under GDPR. Leave unchecked if you sell to the EU/UK.', 'checkoutflow' ),
+			),
+			'capture_forms' => array(
+				'type'    => 'checkbox',
+				'label'   => __( 'Add people who submit website forms to Contacts', 'checkoutflow' ),
+				'default' => true,
+				'desc'    => __( 'Contact Form 7, WPForms, Elementor Pro, Gravity Forms and Fluent Forms. They are added as "Not subscribed" (no marketing consent). New accounts are always added.', 'checkoutflow' ),
 			),
 		);
 

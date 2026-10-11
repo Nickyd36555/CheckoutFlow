@@ -34,7 +34,7 @@ class Admin {
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
-		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave', 'ai_generate', 'ai_status' ) as $action ) {
+		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave', 'ai_generate', 'ai_status', 'fk_step' ) as $action ) {
 			add_action( 'wp_ajax_cf_' . $action, array( $this, 'ajax_' . $action ) );
 		}
 		add_action( 'wp_ajax_cf_ai_work', array( AI::class, 'ajax_work' ) );
@@ -768,6 +768,20 @@ class Admin {
 		wp_send_json_success( array( 'status' => $job['status'] ) );
 	}
 
+	/**
+	 * Run one FunnelKit import batch while the Contacts page is open, and report progress.
+	 */
+	public function ajax_fk_step() {
+		self::ajax_check();
+		$state = \CheckoutFlow\Marketing\FunnelKit_Import::state();
+		if ( ! empty( $state['running'] ) && ! get_transient( 'checkoutflow_fk_lock' ) ) {
+			set_transient( 'checkoutflow_fk_lock', 1, 90 );
+			$state = \CheckoutFlow\Marketing\FunnelKit_Import::batch();
+			delete_transient( 'checkoutflow_fk_lock' );
+		}
+		wp_send_json_success( array_intersect_key( $state, array_flip( array( 'running', 'done', 'total', 'subscribed', 'unsubscribed' ) ) ) );
+	}
+
 	public function ajax_ty_autosave() {
 		self::ajax_check();
 		Thank_You::save( json_decode( isset( $_POST['design'] ) ? wp_unslash( $_POST['design'] ) : '', true ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification
@@ -980,6 +994,16 @@ class Admin {
 				Contacts::subscribe( $email, true );
 			}
 			self::redirect( self::url( 'contacts' ), __( 'Contact saved.', 'checkoutflow' ) );
+		}
+
+		if ( 'funnelkit_import' === $do ) {
+			\CheckoutFlow\Marketing\FunnelKit_Import::start();
+			self::redirect( self::url( 'contacts' ), __( 'Importing your FunnelKit contacts…', 'checkoutflow' ) );
+		}
+
+		if ( 'webhook_key' === $do ) {
+			\CheckoutFlow\Marketing\Capture::key( true );
+			self::redirect( self::url( 'contacts' ), __( 'New webhook key created. Update it in the tools that send contacts here.', 'checkoutflow' ) );
 		}
 
 		if ( 'sync_orders' === $do ) {

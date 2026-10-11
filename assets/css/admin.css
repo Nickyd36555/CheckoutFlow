@@ -195,3 +195,7 @@ fieldset[disabled] .button { pointer-events: none; opacity: .6; }
 	.cf-fopts, .cf-fnote { padding-left: 0; }
 	.cf-fname { flex-direction: column; gap: 0; }
 }
+.cf-progress { height: 10px; max-width: 520px; border-radius: 5px; background: #f0f0f1; overflow: hidden; }
+.cf-progress span { display: block; height: 100%; background: #2271b1; transition: width .3s ease; }
+.cf-code { overflow-x: auto; padding: 10px 12px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; font-size: 12px; white-space: pre; }
+.cf-fk-import { border-left: 4px solid #2271b1; }

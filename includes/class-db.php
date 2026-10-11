@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 
 class DB {
 
-	const DB_VERSION     = '2';
+	const DB_VERSION     = '3';
 	const VERSION_OPTION = 'checkoutflow_db_version';
 
 	public static function t( $name ) {
@@ -77,6 +77,9 @@ class DB {
 			user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			status varchar(20) NOT NULL DEFAULT 'none',
 			source varchar(30) NOT NULL DEFAULT '',
+			phone varchar(30) NOT NULL DEFAULT '',
+			country varchar(2) NOT NULL DEFAULT '',
+			tags text,
 			orders int(10) unsigned NOT NULL DEFAULT 0,
 			spent decimal(19,4) NOT NULL DEFAULT 0,
 			last_order_at datetime DEFAULT NULL,
