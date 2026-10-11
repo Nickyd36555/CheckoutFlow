@@ -131,6 +131,10 @@ Emails and the thank-you page are designed in the same full-screen editor:
 - Drag blocks onto the preview, drag a selected block by its handle to move it (also into or out of columns), and click a heading or text block to type in place. Every block has background and spacing settings.
 - Undo/redo (Ctrl+Z / Ctrl+Shift+Z), Delete to remove the selected block, Ctrl+S to save, desktop/mobile preview, send test. Changes autosave a few seconds after you stop editing.
 
+## Sending large campaigns
+
+Campaigns go out in batches within **Max emails per minute** (Settings → Email & SMTP); keep it within your SMTP provider's limit. 10,000 emails at 60/min takes about 2 hours 50 minutes, and at 200/min about 50 minutes. The campaign page shows a live progress bar (sent, failed, left, speed, time remaining) with **Pause**, **Resume** and **Stop**, and the Campaigns list shows a small bar per sending campaign. Sending continues in the background via WP-Cron; while a campaign page is open it also keeps the batches moving, never above the per-minute limit. For dependable background sending, run a real server cron for wp-cron.php every minute.
+
 ## Contacts: FunnelKit import and automatic capture
 
 **Import from FunnelKit** (Contacts page) reads FunnelKit Automations' own tables, which stay in the database after FunnelKit is deactivated. It brings over email, names, phone, country, tags and lists, and the original sign-up date. It runs in the background, about 3,000 contacts in under a minute. Subscription status is kept: FunnelKit unsubscribes, bounces and complaints are never emailed, and nobody is re-subscribed. It can be run again safely.

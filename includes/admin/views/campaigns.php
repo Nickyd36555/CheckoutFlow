@@ -46,7 +46,16 @@ $rows = $wpdb->get_results( 'SELECT * FROM ' . DB::t( 'campaigns' ) . ' ORDER BY
 		?>
 		<tr>
 			<td><strong><a href="<?php echo esc_url( Admin::url( 'campaigns', array( 'id' => $c['id'] ) ) ); ?>"><?php echo esc_html( $c['name'] ); ?></a></strong></td>
-			<td><span class="cf-badge cf-badge-<?php echo esc_attr( $c['status'] ); ?>"><?php echo esc_html( $c['status'] ); ?></span></td>
+			<td>
+				<span class="cf-badge cf-badge-<?php echo esc_attr( $c['status'] ); ?>"><?php echo esc_html( $c['status'] ); ?></span>
+				<?php if ( in_array( $c['status'], array( 'sending', 'paused' ), true ) ) : ?>
+					<?php $p = Campaigns::progress( $c['id'] ); ?>
+					<div class="cf-row-progress" data-id="<?php echo esc_attr( $c['id'] ); ?>" data-status="<?php echo esc_attr( $c['status'] ); ?>">
+						<div class="cf-progress"><span style="width:<?php echo esc_attr( $p['percent'] ); ?>%"></span></div>
+						<small class="cf-muted cf-p-short"><?php echo esc_html( number_format_i18n( $p['done'] ) . ' / ' . number_format_i18n( $p['total'] ) ); ?></small>
+					</div>
+				<?php endif; ?>
+			</td>
 			<td><?php echo esc_html( number_format_i18n( (int) $c['recipients'] ) ); ?></td>
 			<td><?php echo esc_html( $sent ? round( $s['opened'] / $sent * 100, 1 ) . '%' : '–' ); ?></td>
 			<td><?php echo esc_html( $sent ? round( $s['clicked'] / $sent * 100, 1 ) . '%' : '–' ); ?></td>

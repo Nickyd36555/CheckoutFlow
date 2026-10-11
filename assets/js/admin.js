@@ -158,3 +158,97 @@
 	}
 	step();
 }() );
+
+/* Campaigns: live sending progress. While a campaign is sending and this page is open,
+   each poll also sends the next small batch (always within the per-minute limit). */
+( function () {
+	var A = window.checkoutflowAdmin;
+	var big = document.querySelector( '.cf-send-progress' );
+	var rows = Array.prototype.slice.call( document.querySelectorAll( '.cf-row-progress' ) );
+	if ( ! A || ( ! big && ! rows.length ) ) {
+		return;
+	}
+	var fmt = function ( n ) {
+		return Number( n || 0 ).toLocaleString();
+	};
+	var eta = function ( m ) {
+		if ( m <= 1 ) {
+			return 'less than a minute';
+		}
+		var h = Math.floor( m / 60 );
+		return ( h ? h + 'h ' : '' ) + ( m % 60 ) + 'm';
+	};
+	function text( p ) {
+		if ( p.status === 'sent' ) {
+			return 'Finished: ' + fmt( p.sent ) + ' sent' + ( p.failed ? ', ' + fmt( p.failed ) + ' failed' : '' ) + '.';
+		}
+		if ( p.status === 'cancelled' ) {
+			return 'Stopped: ' + fmt( p.sent ) + ' sent, ' + fmt( p.cancelled ) + ' not sent.';
+		}
+		var s = 'Sent ' + fmt( p.sent ) + ' of ' + fmt( p.total ) + ( p.failed ? ' · ' + fmt( p.failed ) + ' failed' : '' ) + ' · ' + fmt( p.remaining ) + ' left';
+		if ( p.status === 'paused' ) {
+			return s + ' · Paused';
+		}
+		if ( p.remaining ) {
+			s += ' · about ' + eta( p.eta_min ) + ' to go (up to ' + fmt( p.rate ) + '/min' + ( p.per_min ? ', now ' + p.per_min + '/min' : '' ) + ')';
+		}
+		return s;
+	}
+	function paint( p ) {
+		if ( big && String( big.dataset.id ) === String( p.id ) ) {
+			big.querySelector( '.cf-progress span' ).style.width = p.percent + '%';
+			big.querySelector( '.cf-p-percent' ).textContent = p.percent + '%';
+			big.querySelector( '.cf-p-text' ).textContent = text( p );
+		}
+		rows.forEach( function ( r ) {
+			if ( String( r.dataset.id ) === String( p.id ) ) {
+				r.querySelector( '.cf-progress span' ).style.width = p.percent + '%';
+				r.querySelector( '.cf-p-short' ).textContent = fmt( p.done ) + ' / ' + fmt( p.total ) + ( p.status === 'paused' ? ' · paused' : '' );
+			}
+		} );
+	}
+	if ( big ) {
+		var first = JSON.parse( big.querySelector( '.cf-p-data' ).textContent || '{}' );
+		first.id = big.dataset.id;
+		paint( first );
+	}
+	var ids = ( big ? [ big ] : [] ).concat( rows ).filter( function ( n ) {
+		return n.dataset.status === 'sending';
+	} ).map( function ( n ) {
+		return n.dataset.id;
+	} );
+	if ( ! ids.length ) {
+		return;
+	}
+	function poll() {
+		var fd = new FormData();
+		fd.append( 'action', 'cf_campaign_progress' );
+		fd.append( 'nonce', A.nonce );
+		fd.append( 'ids', ids.join( ',' ) );
+		fd.append( 'drive', document.hidden ? '' : '1' );
+		fetch( A.ajax, { method: 'POST', body: fd, credentials: 'same-origin' } ).then( function ( r ) {
+			return r.json();
+		} ).then( function ( r ) {
+			if ( ! r || ! r.success ) {
+				return setTimeout( poll, 10000 );
+			}
+			var still = false;
+			Object.keys( r.data ).forEach( function ( id ) {
+				var p = r.data[ id ];
+				p.id = id;
+				paint( p );
+				if ( p.status === 'sending' ) {
+					still = true;
+				}
+			} );
+			if ( still ) {
+				setTimeout( poll, 3000 );
+			} else {
+				window.location.reload(); // finished: refresh stats
+			}
+		} ).catch( function () {
+			setTimeout( poll, 10000 );
+		} );
+	}
+	setTimeout( poll, 1500 );
+}() );

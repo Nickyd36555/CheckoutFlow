@@ -34,7 +34,7 @@ class Admin {
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
-		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave', 'ai_generate', 'ai_status', 'fk_step' ) as $action ) {
+		foreach ( array( 'preview', 'send_test', 'audience_count', 'ty_preview', 'autosave_email', 'ty_autosave', 'ai_generate', 'ai_status', 'fk_step', 'campaign_progress' ) as $action ) {
 			add_action( 'wp_ajax_cf_' . $action, array( $this, 'ajax_' . $action ) );
 		}
 		add_action( 'wp_ajax_cf_ai_work', array( AI::class, 'ajax_work' ) );
@@ -769,6 +769,31 @@ class Admin {
 	}
 
 	/**
+	 * Campaign progress for the live bar. With "drive", also sends the next few emails
+	 * (within the per-minute limit) so sending keeps moving while the page is open,
+	 * even when WP-Cron runs late.
+	 */
+	public function ajax_campaign_progress() {
+		self::ajax_check();
+		// phpcs:disable WordPress.Security.NonceVerification -- checked in ajax_check()
+		$ids   = isset( $_POST['ids'] ) ? array_filter( array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) ) ) : array();
+		$drive = ! empty( $_POST['drive'] );
+		// phpcs:enable
+		if ( $drive && ! get_transient( 'checkoutflow_send_lock' ) ) {
+			set_transient( 'checkoutflow_send_lock', 1, 60 );
+			Campaigns::dispatch_due();
+			\CheckoutFlow\Mail\Queue::process( 25, 20 );
+			Campaigns::dispatch_due(); // closes campaigns that just finished
+			delete_transient( 'checkoutflow_send_lock' );
+		}
+		$out = array();
+		foreach ( array_slice( $ids, 0, 50 ) as $id ) {
+			$out[ $id ] = Campaigns::progress( $id );
+		}
+		wp_send_json_success( $out );
+	}
+
+	/**
 	 * Run one FunnelKit import batch while the Contacts page is open, and report progress.
 	 */
 	public function ajax_fk_step() {
@@ -850,12 +875,22 @@ class Admin {
 		if ( 'delete' === $do ) {
 			DB::delete( 'campaigns', $id );
 			$wpdb->delete( DB::t( 'queue' ), array( 'source' => 'campaign', 'source_id' => $id, 'status' => 'pending' ) );
+			$wpdb->delete( DB::t( 'queue' ), array( 'source' => 'campaign', 'source_id' => $id, 'status' => 'paused' ) );
 			self::redirect( self::url( 'campaigns' ), __( 'Campaign deleted.', 'checkoutflow' ) );
 		}
 		if ( 'cancel' === $do ) {
 			DB::update( 'campaigns', $id, array( 'status' => 'cancelled' ) );
 			$wpdb->update( DB::t( 'queue' ), array( 'status' => 'cancelled', 'error' => 'campaign cancelled' ), array( 'source' => 'campaign', 'source_id' => $id, 'status' => 'pending' ) );
+			$wpdb->update( DB::t( 'queue' ), array( 'status' => 'cancelled', 'error' => 'campaign cancelled' ), array( 'source' => 'campaign', 'source_id' => $id, 'status' => 'paused' ) );
 			self::redirect( self::url( 'campaigns', array( 'id' => $id ) ), __( 'Campaign cancelled. Emails already sent could not be recalled.', 'checkoutflow' ) );
+		}
+		if ( 'pause' === $do ) {
+			Campaigns::pause( $id );
+			self::redirect( self::url( 'campaigns', array( 'id' => $id ) ), __( 'Sending paused. Resume any time.', 'checkoutflow' ) );
+		}
+		if ( 'resume' === $do ) {
+			Campaigns::resume( $id );
+			self::redirect( self::url( 'campaigns', array( 'id' => $id ) ), __( 'Sending resumed.', 'checkoutflow' ) );
 		}
 		if ( 'duplicate' === $do ) {
 			$c = DB::get( 'campaigns', $id );

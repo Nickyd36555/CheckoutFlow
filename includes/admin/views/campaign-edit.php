@@ -22,6 +22,32 @@ $local_scheduled = $campaign['scheduled_at'] ? get_date_from_gmt( $campaign['sch
 <p><a href="<?php echo esc_url( Admin::url( 'campaigns' ) ); ?>">&larr; <?php esc_html_e( 'All campaigns', 'checkoutflow' ); ?></a></p>
 <h1><?php echo esc_html( $campaign['name'] ); ?> <span class="cf-badge cf-badge-<?php echo esc_attr( $campaign['status'] ); ?>"><?php echo esc_html( $campaign['status'] ); ?></span></h1>
 
+<?php if ( in_array( $campaign['status'], array( 'sending', 'paused', 'sent', 'cancelled' ), true ) ) : ?>
+	<?php $p = Campaigns::progress( $campaign['id'] ); ?>
+	<div class="cf-card cf-send-progress" data-id="<?php echo esc_attr( $campaign['id'] ); ?>" data-status="<?php echo esc_attr( $campaign['status'] ); ?>">
+		<div class="cf-send-head">
+			<h2><?php esc_html_e( 'Sending progress', 'checkoutflow' ); ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="cf-send-actions">
+				<input type="hidden" name="action" value="cf_campaign_action">
+				<input type="hidden" name="id" value="<?php echo esc_attr( $campaign['id'] ); ?>">
+				<?php wp_nonce_field( 'cf_campaign_action' ); ?>
+				<?php if ( 'sending' === $campaign['status'] ) : ?>
+					<button type="submit" name="do" value="pause" class="button"><?php esc_html_e( 'Pause', 'checkoutflow' ); ?></button>
+				<?php elseif ( 'paused' === $campaign['status'] ) : ?>
+					<button type="submit" name="do" value="resume" class="button button-primary"><?php esc_html_e( 'Resume sending', 'checkoutflow' ); ?></button>
+				<?php endif; ?>
+				<?php if ( in_array( $campaign['status'], array( 'sending', 'paused' ), true ) ) : ?>
+					<button type="submit" name="do" value="cancel" class="button-link cf-delete" data-confirm="<?php esc_attr_e( 'Stop sending the remaining emails? This can\'t be undone.', 'checkoutflow' ); ?>"><?php esc_html_e( 'Stop', 'checkoutflow' ); ?></button>
+				<?php endif; ?>
+			</form>
+		</div>
+		<div class="cf-progress cf-progress-lg"><span style="width:<?php echo esc_attr( $p['percent'] ); ?>%"></span></div>
+		<p class="cf-send-line"><strong class="cf-p-percent"><?php echo esc_html( $p['percent'] ); ?>%</strong> · <span class="cf-p-text"></span></p>
+		<p class="description cf-send-note"><?php echo 'sending' === $campaign['status'] ? esc_html__( 'Emails go out in batches within your "Max emails per minute" limit (Settings → Email & SMTP). Sending continues in the background if you close this page.', 'checkoutflow' ) : ''; ?></p>
+		<script type="application/json" class="cf-p-data"><?php echo wp_json_encode( $p ); ?></script>
+	</div>
+<?php endif; ?>
+
 <?php if ( ! $editable ) : ?>
 	<div class="cf-kpis">
 		<div class="cf-kpi"><span><?php esc_html_e( 'Recipients', 'checkoutflow' ); ?></span><strong><?php echo esc_html( number_format_i18n( (int) $campaign['recipients'] ) ); ?></strong></div>
@@ -128,8 +154,5 @@ $local_scheduled = $campaign['scheduled_at'] ? get_date_from_gmt( $campaign['sch
 	<input type="hidden" name="id" value="<?php echo esc_attr( $campaign['id'] ); ?>">
 	<?php wp_nonce_field( 'cf_campaign_action' ); ?>
 	<button type="submit" name="do" value="duplicate" class="button"><?php esc_html_e( 'Duplicate', 'checkoutflow' ); ?></button>
-	<?php if ( 'sending' === $campaign['status'] ) : ?>
-		<button type="submit" name="do" value="cancel" class="button" data-confirm="<?php esc_attr_e( 'Stop sending the remaining emails?', 'checkoutflow' ); ?>"><?php esc_html_e( 'Stop sending', 'checkoutflow' ); ?></button>
-	<?php endif; ?>
 	<button type="submit" name="do" value="delete" class="button-link cf-delete" data-confirm="<?php esc_attr_e( 'Delete this campaign?', 'checkoutflow' ); ?>"><?php esc_html_e( 'Delete', 'checkoutflow' ); ?></button>
 </form>

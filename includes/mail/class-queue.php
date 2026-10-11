@@ -86,29 +86,56 @@ class Queue {
 	}
 
 	/**
-	 * Send due emails, up to the per-minute rate.
+	 * Emails sent (or attempted) in the last 60 seconds, across every runner.
 	 */
-	public static function process() {
+	public static function sent_last_minute() {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . DB::t( 'queue' ) . " WHERE status IN ('sent','failed','sending') AND sent_at >= %s", gmdate( 'Y-m-d H:i:s', time() - MINUTE_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	public static function rate() {
+		return max( 1, (int) Settings::get( 'email_rate' ) );
+	}
+
+	/**
+	 * Send due emails without going over the per-minute rate. Runs from the cron tick
+	 * and, while a campaign page is open, from its progress poll; both share the rate.
+	 *
+	 * @param int $max    Most emails to send in this call (0 = up to the rate).
+	 * @param int $budget Seconds this call may spend.
+	 * @return int Emails attempted.
+	 */
+	public static function process( $max = 0, $budget = 50 ) {
 		global $wpdb;
 		$table = DB::t( 'queue' );
-		$limit = max( 1, (int) Settings::get( 'email_rate' ) );
 		$start = time();
 
 		// Release rows stuck in "sending" by a crashed run.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'pending' WHERE status = 'sending' AND sent_at < %s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'pending' AND send_at <= %s ORDER BY send_at ASC LIMIT %d", DB::now(), $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$limit = self::rate() - self::sent_last_minute();
+		if ( $max > 0 ) {
+			$limit = min( $limit, $max );
+		}
+		if ( $limit <= 0 ) {
+			return 0;
+		}
 
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'pending' AND send_at <= %s ORDER BY send_at ASC, id ASC LIMIT %d", DB::now(), $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$done = 0;
 		foreach ( $ids as $id ) {
-			if ( time() - $start > 50 ) {
+			if ( time() - $start > $budget ) {
 				break;
 			}
 			// Atomic claim: only one runner can move a row out of "pending".
 			$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'sending', sent_at = %s WHERE id = %d AND status = 'pending'", DB::now(), $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			if ( $claimed ) {
 				self::send( DB::get( 'queue', $id ) );
+				++$done;
 			}
 		}
+		return $done;
 	}
 
 	/**

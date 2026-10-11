@@ -150,6 +150,75 @@ class Campaigns {
 	}
 
 	/**
+	 * Pause a sending campaign: its unsent emails wait until it is resumed.
+	 */
+	public static function pause( $id ) {
+		global $wpdb;
+		$qt = DB::t( 'queue' );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . DB::t( 'campaigns' ) . " SET status = 'paused', updated_at = %s WHERE id = %d AND status = 'sending'", DB::now(), $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$qt} SET status = 'paused' WHERE source = 'campaign' AND source_id = %d AND status = 'pending'", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	public static function resume( $id ) {
+		global $wpdb;
+		$qt = DB::t( 'queue' );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$qt} SET status = 'pending' WHERE source = 'campaign' AND source_id = %d AND status = 'paused'", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . DB::t( 'campaigns' ) . " SET status = 'sending', updated_at = %s WHERE id = %d AND status = 'paused'", DB::now(), $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * Sending progress for the progress bar.
+	 *
+	 * @param int $id Campaign ID.
+	 * @return array
+	 */
+	public static function progress( $id ) {
+		global $wpdb;
+		$c   = DB::get( 'campaigns', $id );
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$wpdb->prepare(
+				"SELECT COUNT(*) AS total,
+					SUM(status = 'sent') AS sent,
+					SUM(status = 'failed') AS failed,
+					SUM(status IN ('pending','sending')) AS pending,
+					SUM(status = 'paused') AS paused,
+					SUM(status = 'cancelled') AS cancelled,
+					SUM(status IN ('sent','failed') AND sent_at >= %s) AS last10,
+					MAX(CASE WHEN status IN ('sent','failed') THEN sent_at END) AS last_at,
+					MIN(CASE WHEN status IN ('sent','failed') AND sent_at >= %s THEN sent_at END) AS window_start
+				FROM " . DB::t( 'queue' ) . " WHERE source = 'campaign' AND source_id = %d",
+				gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ),
+				gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ),
+				$id
+			),
+			ARRAY_A
+		);
+		$rate      = \CheckoutFlow\Mail\Queue::rate();
+		$done      = (int) $row['sent'] + (int) $row['failed'];
+		$remaining = (int) $row['pending'] + (int) $row['paused'];
+		$total     = max( (int) $row['total'], $c ? (int) $c['recipients'] : 0 );
+		// Average speed over the time actually spent sending (up to the last 10 minutes);
+		// right after a start, assume the full rate.
+		$span      = $row['window_start'] ? ( time() - strtotime( $row['window_start'] . ' UTC' ) ) / 60 : 0;
+		$observed  = $span >= 2 ? (int) $row['last10'] / min( 10, $span ) : 0;
+		$speed     = $observed > 0 ? min( $rate, $observed ) : $rate;
+		return array(
+			'status'    => $c ? $c['status'] : '',
+			'total'     => $total,
+			'sent'      => (int) $row['sent'],
+			'failed'    => (int) $row['failed'],
+			'remaining' => $remaining,
+			'cancelled' => (int) $row['cancelled'],
+			'done'      => $done,
+			'percent'   => $total ? min( 100, round( $done / $total * 100, 1 ) ) : 0,
+			'rate'      => $rate,
+			'per_min'   => round( $observed, 1 ),
+			'eta_min'   => $remaining ? (int) ceil( $remaining / max( 1, $speed ) ) : 0,
+			'last_at'   => $row['last_at'] ? strtotime( $row['last_at'] . ' UTC' ) : 0,
+		);
+	}
+
+	/**
 	 * Aggregate stats for a source (campaign/automation).
 	 *
 	 * @return array sent, opened, clicked, revenue, orders, failed, pending
