@@ -150,7 +150,7 @@ Below it: recent conversions with where each order came from, and revenue by tra
 
 ## AI email writer
 
-The email editor has a **Write with AI** button. Describe the email ("weekend flash sale, 15% off with a coupon, feature our best sellers") and it writes the subject line, preview text and a full layout of normal, editable blocks. You can also add a section to an existing email. Undo restores what you had.
+The email editor has **Write with AI** and **Edit with AI** buttons. Edit with AI fine-tunes what's already there ("make it orange and black", "punchier headline", "add a best-sellers section"), either the whole email or just the selected block, keeping everything you didn't mention. Describe the email ("weekend flash sale, 15% off with a coupon, feature our best sellers") and it writes the subject line, preview text and a full layout of normal, editable blocks. You can also add a section to an existing email. Undo restores what you had.
 
 - Powered by Claude (Anthropic). Add your own API key in **Settings → Email & SMTP → AI email writer** (create one at console.anthropic.com); usage is billed to your Anthropic account. The key is stored encrypted, or define `CHECKOUTFLOW_ANTHROPIC_API_KEY` in `wp-config.php`.
 - **Brand voice & rules** (same settings section) is sent with every request, e.g. tone and required disclaimers.

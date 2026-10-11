@@ -267,7 +267,12 @@
 
 	var actions = el( 'div', { class: 'cfx-actions' } );
 	if ( ! locked && B.mode === 'email' && B.ai ) {
-		actions.appendChild( el( 'button', { type: 'button', class: 'button cfx-ai-btn', onclick: openAI }, [ icon( 'lightbulb' ), el( 'span', { text: T.aiWrite || 'Write with AI' } ) ] ) );
+		actions.appendChild( el( 'button', { type: 'button', class: 'button cfx-ai-btn', onclick: function () {
+			openAI( 'write' );
+		} }, [ icon( 'lightbulb' ), el( 'span', { text: T.aiWrite || 'Write with AI' } ) ] ) );
+		actions.appendChild( el( 'button', { type: 'button', class: 'button cfx-ai-btn cfx-ai-edit-btn', onclick: function () {
+			openAI( 'edit' );
+		} }, [ icon( 'edit' ), el( 'span', { text: T.aiEdit || 'Edit with AI' } ) ] ) );
 	}
 	if ( ! locked && B.templates && B.templates.length ) {
 		actions.appendChild( el( 'button', { type: 'button', class: 'button', text: T.templates || 'Templates', onclick: openTemplates } ) );
@@ -382,7 +387,10 @@
 	/* ---------- AI writer ---------- */
 
 	var aiBrief = '';
-	function openAI() {
+	function openAI( kind ) {
+		var isEdit = kind === 'edit';
+		var editPath = sel;           // block selected when the dialog opened
+		var editBlock = get( sel );
 		var modal = el( 'div', { class: 'cfx-modal', role: 'dialog', 'aria-modal': 'true' } );
 		var busy = false;
 		var close = function () {
@@ -390,7 +398,7 @@
 				modal.remove();
 			}
 		};
-		var head = el( 'div', { class: 'cfx-modal-head' }, [ el( 'h2', { text: T.aiWrite || 'Write with AI' } ), el( 'button', { type: 'button', class: 'cfx-icon-btn', 'aria-label': T.close || 'Close', onclick: close }, [ icon( 'no-alt' ) ] ) ] );
+		var head = el( 'div', { class: 'cfx-modal-head' }, [ el( 'h2', { text: isEdit ? ( T.aiEdit || 'Edit with AI' ) : ( T.aiWrite || 'Write with AI' ) } ), el( 'button', { type: 'button', class: 'cfx-icon-btn', 'aria-label': T.close || 'Close', onclick: close }, [ icon( 'no-alt' ) ] ) ] );
 		var box = el( 'div', { class: 'cfx-modal-box cfx-ai' }, [ head ] );
 		modal.appendChild( box );
 
@@ -398,10 +406,25 @@
 			box.appendChild( el( 'p', { text: T.aiNoKey || 'To use the AI writer, add your Anthropic API key in Settings → Email & SMTP.' } ) );
 			box.appendChild( el( 'p', {}, [ el( 'a', { class: 'button button-primary', href: B.ai.settingsUrl, target: '_blank', rel: 'noopener', text: T.aiOpenSettings || 'Open settings' } ) ] ) );
 		} else {
-			var brief = el( 'textarea', { class: 'cfx-ai-brief', rows: '5', placeholder: T.aiPlaceholder || 'Describe the email: the occasion, the offer, products to feature, tone… e.g. "Weekend flash sale, 15% off everything with a coupon, feature our 3 best sellers, mention bulk pricing"' } );
-			brief.value = aiBrief;
+			if ( isEdit && ! design.blocks.length ) {
+				box.appendChild( el( 'p', { text: T.aiEditEmpty || 'There is nothing to edit yet. Use "Write with AI" or a template first.' } ) );
+				modal.addEventListener( 'click', function ( e ) {
+					if ( e.target === modal ) {
+						close();
+					}
+				} );
+				root.appendChild( modal );
+				return;
+			}
+			var brief = el( 'textarea', { class: 'cfx-ai-brief', rows: '5', placeholder: isEdit
+				? ( T.aiEditPlaceholder || 'What should change? e.g. "Make it orange and black for Halloween", "Shorter, punchier headline", "Add a section featuring BPC-157 and TB-500", "Move the coupon above the products"' )
+				: ( T.aiPlaceholder || 'Describe the email: the occasion, the offer, products to feature, tone… e.g. "Weekend flash sale, 15% off everything with a coupon, feature our 3 best sellers, mention bulk pricing"' ) } );
+			brief.value = isEdit ? '' : aiBrief;
 			var ideas = el( 'div', { class: 'cfx-ai-ideas' } );
-			( T.aiIdeas || [ 'Flash sale: 15% off sitewide for 48 hours, with a coupon', 'New arrivals: feature our 3 newest products', 'Win back customers who haven\'t ordered in 60 days', 'Monthly newsletter with best sellers and a bulk pricing reminder' ] ).forEach( function ( idea ) {
+			var ideaList = isEdit
+				? ( T.aiEditIdeas || [ 'Make the copy shorter and punchier', 'Stronger, more urgent call to action', 'Change the colors to match the occasion', 'Add a section featuring 3 best sellers', 'Fix spelling and tighten the wording' ] )
+				: ( T.aiIdeas || [ 'Flash sale: 15% off sitewide for 48 hours, with a coupon', 'New arrivals: feature our 3 newest products', 'Win back customers who haven\'t ordered in 60 days', 'Monthly newsletter with best sellers and a bulk pricing reminder' ] );
+			ideaList.forEach( function ( idea ) {
 				ideas.appendChild( el( 'button', { type: 'button', class: 'cfx-ai-idea', text: idea, onclick: function () {
 					brief.value = idea;
 					brief.focus();
@@ -409,13 +432,19 @@
 			} );
 			var modeName = 'cfx-ai-mode';
 			var modes = el( 'div', { class: 'cfx-ai-modes' } );
-			[ [ 'replace', T.aiReplace || 'Write a new email (replaces current content)' ], [ 'append', T.aiAppend || 'Add a section to this email' ] ].forEach( function ( m, i ) {
+			var modeList = isEdit
+				? [ [ 'edit', T.aiEditAll || 'Edit the whole email' ] ].concat( editBlock && editBlock.type !== 'columns' ? [ [ 'edit_block', ( T.aiEditBlock || 'Edit only the selected block' ) + ' (' + ( ( B.types[ editBlock.type ] && B.types[ editBlock.type ].label ) || editBlock.type ) + ')' ] ] : [] )
+				: [ [ 'replace', T.aiReplace || 'Write a new email (replaces current content)' ], [ 'append', T.aiAppend || 'Add a section to this email' ] ];
+			modeList.forEach( function ( m, i ) {
 				var r = el( 'input', { type: 'radio', name: modeName, value: m[ 0 ] } );
-				r.checked = design.blocks.length ? i === 1 : i === 0;
+				r.checked = isEdit ? ( editBlock && editBlock.type !== 'columns' ? m[ 0 ] === 'edit_block' : i === 0 ) : ( design.blocks.length ? i === 1 : i === 0 );
 				modes.appendChild( el( 'label', {}, [ r, el( 'span', { text: m[ 1 ] } ) ] ) );
 			} );
+			if ( isEdit && ! ( editBlock && editBlock.type !== 'columns' ) ) {
+				modes.appendChild( el( 'p', { class: 'cfx-tip', text: T.aiEditTip || 'Tip: select a block in the email first to edit just that block.' } ) );
+			}
 			var msg = el( 'p', { class: 'cfx-ai-msg', 'aria-live': 'polite' } );
-			var go = el( 'button', { type: 'button', class: 'button button-primary cfx-ai-go', text: T.aiGenerate || 'Generate' } );
+			var go = el( 'button', { type: 'button', class: 'button button-primary cfx-ai-go', text: isEdit ? ( T.aiApply || 'Apply changes' ) : ( T.aiGenerate || 'Generate' ) } );
 			go.addEventListener( 'click', function () {
 				var text = brief.value.trim();
 				if ( ! text ) {
@@ -428,7 +457,7 @@
 				go.disabled = true;
 				box.classList.add( 'is-busy' );
 				msg.className = 'cfx-ai-msg';
-				msg.textContent = T.aiWorking || 'Writing your email… this usually takes 20–60 seconds.';
+				msg.textContent = isEdit ? ( T.aiEditing || 'Editing… this usually takes 20–60 seconds.' ) : ( T.aiWorking || 'Writing your email… this usually takes 20–60 seconds.' );
 				var fail = function ( m ) {
 					busy = false;
 					go.disabled = false;
@@ -460,7 +489,7 @@
 						busy = false;
 						go.disabled = false;
 						box.classList.remove( 'is-busy' );
-						applyAI( r.data.email, mode );
+						applyAI( r.data.email, mode, editPath );
 						aiBrief = '';
 						close();
 					} ).catch( function ( e ) {
@@ -471,7 +500,9 @@
 					brief: text,
 					mode: mode,
 					subject: subject ? subject.value : '',
-					design: JSON.stringify( design )
+					preheader: preheader ? preheader.value : '',
+					design: JSON.stringify( design ),
+					block: mode === 'edit_block' ? JSON.stringify( editBlock ) : ''
 				} ).then( function ( r ) {
 					if ( ! r.success ) {
 						return fail( r.data && r.data.message );
@@ -527,12 +558,26 @@
 		} );
 	}
 
-	function applyAI( out, mode ) {
+	function applyAI( out, mode, path ) {
 		var blocks = Array.isArray( out.blocks ) ? out.blocks : [];
 		if ( mode === 'append' ) {
 			if ( blocks.length ) {
 				insertBlocks( blocks );
 			}
+		} else if ( mode === 'edit_block' ) {
+			var at = split( path );
+			var list = listOf( at.container );
+			// A block inside a column can't become a columns row.
+			var repl = clone( blocks ).filter( function ( b ) {
+				return at.container === '' || b.type !== 'columns';
+			} );
+			if ( repl.length && list[ at.index ] ) {
+				Array.prototype.splice.apply( list, [ at.index, 1 ].concat( repl ) );
+				sel = path;
+				changed( { record: true, preview: true } );
+				renderSide();
+			}
+			return;
 		} else {
 			design.blocks = clone( blocks );
 			if ( out.settings && typeof out.settings === 'object' ) {
@@ -544,10 +589,10 @@
 			changed( { record: true, preview: true } );
 			renderSide();
 		}
-		if ( subject && out.subject && ( mode === 'replace' || ! subject.value ) ) {
+		if ( subject && out.subject && ( mode === 'replace' || mode === 'edit' || ! subject.value ) ) {
 			subject.value = out.subject;
 		}
-		if ( preheader && out.preheader && ( mode === 'replace' || ! preheader.value ) ) {
+		if ( preheader && out.preheader && ( mode === 'replace' || mode === 'edit' || ! preheader.value ) ) {
 			preheader.value = out.preheader;
 		}
 		changed( { record: false, preview: true } );

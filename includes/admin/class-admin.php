@@ -716,7 +716,16 @@ class Admin {
 		self::ajax_check();
 		// phpcs:disable WordPress.Security.NonceVerification -- checked in ajax_check()
 		$brief = isset( $_POST['brief'] ) ? sanitize_textarea_field( wp_unslash( $_POST['brief'] ) ) : '';
-		$mode  = isset( $_POST['mode'] ) && 'append' === $_POST['mode'] ? 'append' : 'replace';
+		$mode  = isset( $_POST['mode'] ) && in_array( $_POST['mode'], array( 'append', 'edit', 'edit_block' ), true ) ? sanitize_key( $_POST['mode'] ) : 'replace';
+		$pre   = isset( $_POST['preheader'] ) ? sanitize_text_field( wp_unslash( $_POST['preheader'] ) ) : '';
+		$block = array();
+		if ( 'edit_block' === $mode ) {
+			$one   = Renderer::sanitize( array( 'blocks' => array( json_decode( isset( $_POST['block'] ) ? wp_unslash( $_POST['block'] ) : '', true ) ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+			$block = $one['blocks'];
+			if ( ! $block ) {
+				wp_send_json_error( array( 'message' => __( 'Select a block in the email first.', 'checkoutflow' ) ), 400 );
+			}
+		}
 		$cur   = Renderer::sanitize( json_decode( isset( $_POST['design'] ) ? wp_unslash( $_POST['design'] ) : '', true ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
 		$subj  = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
 		// phpcs:enable
@@ -726,7 +735,7 @@ class Admin {
 		if ( ! AI::enabled() ) {
 			wp_send_json_error( array( 'message' => __( 'Add your Anthropic API key in CheckoutFlow → Settings → Email & SMTP to use the AI writer.', 'checkoutflow' ) ), 400 );
 		}
-		$job = AI::start_job( array( 'brief' => $brief, 'current' => array( 'subject' => $subj, 'blocks' => $cur['blocks'] ), 'mode' => $mode ) );
+		$job = AI::start_job( array( 'brief' => $brief, 'current' => array( 'subject' => $subj, 'preheader' => $pre, 'blocks' => $cur['blocks'], 'settings' => $cur['settings'], 'block' => $block ? $block[0] : array() ), 'mode' => $mode ) );
 		if ( is_wp_error( $job ) ) {
 			wp_send_json_error( array( 'message' => $job->get_error_message() ), 500 );
 		}

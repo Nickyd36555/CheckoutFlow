@@ -334,15 +334,33 @@ class AI {
 			return new \WP_Error( 'cf_ai_key', __( 'Add your Anthropic API key in CheckoutFlow → Settings → Email & SMTP to use the AI writer.', 'checkoutflow' ) );
 		}
 
-		$user = 'Request: ' . $brief;
-		if ( ! empty( $current['blocks'] ) ) {
-			$user .= "\n\nThe email currently contains these blocks (JSON):\n" . wp_json_encode( $current['blocks'] );
-			$user .= 'append' === $mode
-				? "\n\nReturn only the NEW blocks to add after the existing content (subject and preheader may stay as they are)."
-				: "\n\nReturn the complete new email; it replaces the current one.";
-		}
-		if ( ! empty( $current['subject'] ) ) {
-			$user .= "\nCurrent subject: " . $current['subject'];
+		if ( 'edit' === $mode ) {
+			$user = "Edit the existing email below. Requested changes: " . $brief
+				. "\n\nCurrent email (JSON):\n" . wp_json_encode(
+					array(
+						'subject'   => isset( $current['subject'] ) ? $current['subject'] : '',
+						'preheader' => isset( $current['preheader'] ) ? $current['preheader'] : '',
+						'settings'  => isset( $current['settings'] ) ? $current['settings'] : array(),
+						'blocks'    => isset( $current['blocks'] ) ? $current['blocks'] : array(),
+					)
+				)
+				. "\n\nReturn the complete updated email (subject, preheader, settings and every block). Apply exactly the requested changes and keep everything else as it is: the same blocks in the same order, the same images, product IDs, coupon settings, links and merge tags, unless the request asks to change them.";
+		} elseif ( 'edit_block' === $mode ) {
+			$user = "Edit one block of an existing email. Requested changes: " . $brief
+				. "\n\nThe block (JSON):\n" . wp_json_encode( isset( $current['block'] ) ? $current['block'] : array() )
+				. "\n\nFor context, the whole email:\n" . wp_json_encode( isset( $current['blocks'] ) ? $current['blocks'] : array() )
+				. "\n\nReturn only the replacement for this block in \"blocks\" (usually one block; several if the request asks to split or add next to it). Keep its fields the same unless the request changes them. Set subject and preheader to empty strings and omit settings.";
+		} else {
+			$user = 'Request: ' . $brief;
+			if ( ! empty( $current['blocks'] ) ) {
+				$user .= "\n\nThe email currently contains these blocks (JSON):\n" . wp_json_encode( $current['blocks'] );
+				$user .= 'append' === $mode
+					? "\n\nReturn only the NEW blocks to add after the existing content (subject and preheader may stay as they are)."
+					: "\n\nReturn the complete new email; it replaces the current one.";
+			}
+			if ( ! empty( $current['subject'] ) ) {
+				$user .= "\nCurrent subject: " . $current['subject'];
+			}
 		}
 
 		$body = array(
