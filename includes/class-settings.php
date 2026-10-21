@@ -822,9 +822,17 @@ class Settings {
 				'placeholder' => __( 'e.g. We save your cart so you can pick up where you left off.', 'checkoutflow' ),
 				'desc'    => __( 'Leave empty to hide.', 'checkoutflow' ),
 			),
+			'recovery_lost_days'      => array(
+				'type'    => 'number',
+				'label'   => __( 'Mark carts as lost after (days)', 'checkoutflow' ),
+				'default' => 15,
+				'min'     => 1,
+				'max'     => 365,
+				'desc'    => __( 'Abandoned carts that are not recovered within this time move to the Lost tab and get no more recovery emails.', 'checkoutflow' ),
+			),
 			'recovery_retention_days' => array(
 				'type'    => 'number',
-				'label'   => __( 'Delete unrecovered carts after (days)', 'checkoutflow' ),
+				'label'   => __( 'Delete lost carts after (days)', 'checkoutflow' ),
 				'default' => 60,
 				'min'     => 1,
 				'max'     => 3650,

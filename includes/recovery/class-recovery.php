@@ -367,9 +367,24 @@ class Recovery {
 		}
 	}
 
+	/**
+	 * Abandoned carts not recovered within the "lost" window: stop recovery emails and
+	 * move them to Lost.
+	 */
+	public static function mark_lost() {
+		global $wpdb;
+		$table = DB::t( 'carts' );
+		$days  = max( 1, (int) Settings::get( 'recovery_lost_days' ) );
+		$ids   = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE status = 'abandoned' AND COALESCE(abandoned_at, updated_at) < %s LIMIT 500", gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( $ids as $id ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET status = 'lost' WHERE id = %d AND status = 'abandoned'", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			Queue::cancel_pending( 'cart:' . $id, null, 'cart lost' );
+		}
+	}
+
 	public static function cleanup() {
 		global $wpdb;
 		$days = max( 1, (int) Settings::get( 'recovery_retention_days' ) );
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . DB::t( 'carts' ) . " WHERE status IN ('active','abandoned') AND updated_at < %s", gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . DB::t( 'carts' ) . " WHERE status IN ('lost','active') AND updated_at < %s", gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 }

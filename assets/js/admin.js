@@ -252,3 +252,20 @@
 	}
 	setTimeout( poll, 1500 );
 }() );
+
+/* Carts: View opens the detail row. */
+document.addEventListener( 'click', function ( e ) {
+	var btn = e.target.closest && e.target.closest( '.cf-cart-view' );
+	if ( ! btn ) {
+		return;
+	}
+	var row = document.getElementById( btn.getAttribute( 'aria-controls' ) );
+	if ( ! row ) {
+		return;
+	}
+	var open = row.hidden;
+	row.hidden = ! open;
+	btn.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+	btn.textContent = open ? 'Close' : 'View';
+	btn.closest( 'tr' ).classList.toggle( 'is-open', open );
+} );

@@ -30,7 +30,7 @@ class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 
-		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'test_ai', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'reco_rebuild', 'reco_add_rule', 'save_fields', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action' );
+		$posts = array( 'save_discount', 'discount_action', 'save_settings', 'test_email', 'test_ai', 'save_campaign', 'campaign_action', 'new_automation', 'save_automation', 'automation_action', 'save_email', 'reco_rebuild', 'reco_add_rule', 'save_fields', 'contact_action', 'import_contacts', 'export_contacts', 'cart_action', 'export_carts' );
 		foreach ( $posts as $action ) {
 			add_action( 'admin_post_cf_' . $action, array( $this, 'post_' . $action ) );
 		}
@@ -59,7 +59,7 @@ class Admin {
 		add_submenu_page( 'checkoutflow', __( 'Contacts', 'checkoutflow' ), __( 'Contacts', 'checkoutflow' ), self::CAP, 'checkoutflow-contacts', array( $this, 'page_contacts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Discounts', 'checkoutflow' ), __( 'Discounts', 'checkoutflow' ), self::CAP, 'checkoutflow-discounts', array( $this, 'page_discounts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Upsells', 'checkoutflow' ), __( 'Upsells', 'checkoutflow' ), self::CAP, 'checkoutflow-upsells', array( $this, 'page_upsells' ) );
-		add_submenu_page( 'checkoutflow', __( 'Abandoned Carts', 'checkoutflow' ), __( 'Abandoned Carts', 'checkoutflow' ), self::CAP, 'checkoutflow-carts', array( $this, 'page_carts' ) );
+		add_submenu_page( 'checkoutflow', __( 'Carts', 'checkoutflow' ), __( 'Carts', 'checkoutflow' ), self::CAP, 'checkoutflow-carts', array( $this, 'page_carts' ) );
 		add_submenu_page( 'checkoutflow', __( 'Checkout Fields', 'checkoutflow' ), __( 'Checkout Fields', 'checkoutflow' ), self::CAP, 'checkoutflow-fields', array( $this, 'page_fields' ) );
 		add_submenu_page( 'checkoutflow', __( 'Thank You Page', 'checkoutflow' ), __( 'Thank You Page', 'checkoutflow' ), self::CAP, 'checkoutflow-thankyou', array( $this, 'page_thankyou' ) );
 		add_submenu_page( 'checkoutflow', __( 'Settings', 'checkoutflow' ), __( 'Settings', 'checkoutflow' ), self::CAP, 'checkoutflow-settings', array( $this, 'page_settings' ) );
@@ -1104,13 +1104,60 @@ class Admin {
 	public function post_cart_action() {
 		self::check( 'cf_cart_action' );
 		$ids = isset( $_POST['ids'] ) ? array_map( 'absint', (array) $_POST['ids'] ) : array();
-		if ( isset( $_POST['do'] ) && 'delete' === $_POST['do'] ) {
+		$do  = isset( $_POST['do'] ) ? sanitize_key( $_POST['do'] ) : '';
+		if ( 'delete' === $do ) {
 			foreach ( $ids as $id ) {
 				DB::delete( 'carts', $id );
 				\CheckoutFlow\Mail\Queue::cancel_pending( 'cart:' . $id, null, 'cart deleted' );
 			}
+		} elseif ( 'lost' === $do ) {
+			global $wpdb;
+			foreach ( $ids as $id ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . DB::t( 'carts' ) . " SET status = 'lost' WHERE id = %d AND status = 'abandoned'", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				\CheckoutFlow\Mail\Queue::cancel_pending( 'cart:' . $id, null, 'marked lost' );
+			}
 		}
 		self::redirect( wp_get_referer() ? wp_get_referer() : self::url( 'carts' ), __( 'Carts updated.', 'checkoutflow' ) );
+	}
+
+	public function post_export_carts() {
+		self::check( 'cf_export_carts' );
+		global $wpdb;
+		$status = isset( $_POST['status'] ) && in_array( $_POST['status'], array( 'abandoned', 'recovered', 'lost', 'active' ), true ) ? sanitize_key( $_POST['status'] ) : 'abandoned';
+		$search = isset( $_POST['s'] ) ? sanitize_text_field( wp_unslash( $_POST['s'] ) ) : '';
+		$where  = $wpdb->prepare( 'status = %s', $status );
+		if ( '' !== $search ) {
+			$like   = '%' . $wpdb->esc_like( $search ) . '%';
+			$where .= $wpdb->prepare( ' AND (email LIKE %s OR first_name LIKE %s OR last_name LIKE %s OR phone LIKE %s)', $like, $like, $like, $like );
+		}
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename=checkoutflow-carts-' . $status . '-' . gmdate( 'Y-m-d' ) . '.csv' );
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		fputcsv( $out, array( 'email', 'first_name', 'last_name', 'phone', 'status', 'items', 'total', 'currency', 'created_at', 'last_active', 'abandoned_at', 'order_id', 'recovery_link' ), ',', '"', '\\' );
+		$offset = 0;
+		do {
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . DB::t( 'carts' ) . " WHERE {$where} ORDER BY id DESC LIMIT %d, 500", $offset ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+			foreach ( $rows as $r ) {
+				$names = array();
+				foreach ( DB::json( $r['items'] ) as $item ) {
+					$p       = wc_get_product( ! empty( $item['variation_id'] ) ? $item['variation_id'] : $item['product_id'] );
+					$names[] = ( $p ? $p->get_name() : '#' . $item['product_id'] ) . ' x' . wc_stock_amount( $item['quantity'] );
+				}
+				$line = array( $r['email'], $r['first_name'], $r['last_name'], $r['phone'], $r['status'], implode( '; ', $names ), $r['total'], $r['currency'], $r['created_at'], $r['updated_at'], (string) $r['abandoned_at'], $r['order_id'] ? $r['order_id'] : '', 'recovered' === $r['status'] ? '' : add_query_arg( 'cf-recover', $r['token'], home_url( '/' ) ) );
+				// Neutralize spreadsheet formula injection.
+				$line = array_map(
+					static function ( $v ) {
+						return preg_match( '/^[=+\-@]/', (string) $v ) ? "'" . $v : $v;
+					},
+					$line
+				);
+				fputcsv( $out, $line, ',', '"', '\\' );
+			}
+			$offset += 500;
+		} while ( count( $rows ) === 500 );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		exit;
 	}
 
 	/* ---------- AJAX ---------- */

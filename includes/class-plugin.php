@@ -115,6 +115,7 @@ final class Plugin {
 		if ( get_option( 'checkoutflow_daily' ) !== gmdate( 'Y-m-d' ) ) {
 			update_option( 'checkoutflow_daily', gmdate( 'Y-m-d' ), false );
 			Marketing\Automations::run_daily();
+			Recovery\Recovery::mark_lost();
 			Recovery\Recovery::cleanup();
 			Mail\Coupons::cleanup();
 			if ( Settings::get( 'cart_upsells' ) && Settings::get( 'cart_upsell_history' ) ) {
