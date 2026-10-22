@@ -7,6 +7,7 @@
 
 use CheckoutFlow\DB;
 use CheckoutFlow\Admin\Admin;
+use CheckoutFlow\Marketing\Automations;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -61,7 +62,10 @@ $n = static function ( $status ) use ( $counts ) {
 $v = static function ( $status ) use ( $counts ) {
 	return isset( $counts[ $status ] ) ? (float) $counts[ $status ]->t : 0;
 };
-$closed = $n( 'recovered' ) + $n( 'lost' );
+$automation_on = Automations::has_active( 'cart_abandoned' );
+$automation_id = Automations::first_for( 'cart_abandoned' );
+$catchup       = $automation_on ? count( Automations::unemailed_carts( 24 ) ) : 0;
+$closed        = $n( 'recovered' ) + $n( 'lost' );
 $rate   = $closed ? round( $n( 'recovered' ) / $closed * 100, 1 ) . '%' : '–';
 
 $local = static function ( $gmt ) {
@@ -78,7 +82,7 @@ $order_url = static function ( $id ) {
 /**
  * Recovery-email status for a cart: [label, css class, detail].
  */
-$email_status = static function ( $r, $list ) use ( $ago ) {
+$email_status = static function ( $r, $list ) use ( $ago, $automation_on ) {
 	$pending = array_filter(
 		$list,
 		function ( $m ) {
@@ -127,12 +131,33 @@ $email_status = static function ( $r, $list ) use ( $ago ) {
 		$first = reset( $stopped );
 		return array( __( 'Skipped', 'checkoutflow' ), 'skipped', $first['error'] ? $first['error'] : '' );
 	}
-	return array( 'lost' === $r['status'] ? __( 'Lost', 'checkoutflow' ) : __( 'Not emailed', 'checkoutflow' ), 'lost' === $r['status'] ? 'lost' : 'none', __( 'no recovery email', 'checkoutflow' ) );
+	return array( 'lost' === $r['status'] ? __( 'Lost', 'checkoutflow' ) : __( 'Not emailed', 'checkoutflow' ), 'lost' === $r['status'] ? 'lost' : 'none', $automation_on ? __( 'below minimum or already in a sequence this week', 'checkoutflow' ) : __( 'recovery automation is off', 'checkoutflow' ) );
 };
 ?>
 <div class="cf-dash-head">
 	<h1><?php esc_html_e( 'Carts', 'checkoutflow' ); ?></h1>
 </div>
+
+<?php if ( ! $automation_on ) : ?>
+	<div class="notice notice-warning inline cf-carts-notice"><p>
+		<strong><?php esc_html_e( 'Recovery emails are off.', 'checkoutflow' ); ?></strong>
+		<?php esc_html_e( 'No abandoned cart automation is active, so CheckoutFlow does not email these shoppers. If FunnelKit Automations is still sending your cart emails, keep it this way to avoid sending twice; turn it on when FunnelKit is switched off.', 'checkoutflow' ); ?>
+		<a class="button button-small" href="<?php echo esc_url( $automation_id ? Admin::url( 'automations', array( 'id' => $automation_id ) ) : Admin::url( 'automations' ) ); ?>"><?php esc_html_e( 'Open the abandoned cart automation', 'checkoutflow' ); ?></a>
+	</p></div>
+<?php elseif ( $catchup ) : ?>
+	<div class="notice notice-info inline cf-carts-notice"><p>
+		<?php
+		/* translators: %s: number of carts */
+		echo esc_html( sprintf( _n( '%s cart from the last 24 hours has had no recovery email (it was abandoned while the automation was off).', '%s carts from the last 24 hours have had no recovery email (they were abandoned while the automation was off).', $catchup, 'checkoutflow' ), number_format_i18n( $catchup ) ) );
+		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="cf-inline">
+			<input type="hidden" name="action" value="cf_cart_action">
+			<input type="hidden" name="do" value="catchup">
+			<?php wp_nonce_field( 'cf_cart_action' ); ?>
+			<button class="button button-small button-primary" data-confirm="<?php esc_attr_e( 'Start the recovery email sequence for these carts now? Skip this if FunnelKit already emailed them.', 'checkoutflow' ); ?>"><?php esc_html_e( 'Send them recovery emails', 'checkoutflow' ); ?></button>
+		</form>
+	</p></div>
+<?php endif; ?>
 
 <div class="cf-kpis cf-sales-kpis">
 	<div class="cf-kpi"><span><?php esc_html_e( 'Recoverable', 'checkoutflow' ); ?></span><strong><?php echo esc_html( number_format_i18n( $n( 'abandoned' ) ) ); ?></strong><small><?php echo wp_kses_post( wc_price( $v( 'abandoned' ) ) ); ?></small></div>

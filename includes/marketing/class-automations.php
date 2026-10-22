@@ -261,6 +261,35 @@ class Automations {
 		return $row;
 	}
 
+	public static function has_active( $trigger ) {
+		return (bool) self::active_for( $trigger );
+	}
+
+	/**
+	 * First automation (any status) for a trigger, for linking to it.
+	 */
+	public static function first_for( $trigger ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . DB::t( 'automations' ) . ' WHERE trigger_type = %s ORDER BY id ASC LIMIT 1', $trigger ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * Recoverable carts abandoned in the last $hours with no recovery email yet (e.g.
+	 * abandoned while the automation was paused).
+	 *
+	 * @return array[] Cart rows.
+	 */
+	public static function unemailed_carts( $hours = 24 ) {
+		global $wpdb;
+		return $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$wpdb->prepare(
+				'SELECT c.* FROM ' . DB::t( 'carts' ) . " c WHERE c.status = 'abandoned' AND c.abandoned_at >= %s AND NOT EXISTS ( SELECT 1 FROM " . DB::t( 'queue' ) . " q WHERE q.ref = CONCAT('cart:', c.id) ) ORDER BY c.abandoned_at ASC LIMIT 500",
+				gmdate( 'Y-m-d H:i:s', time() - $hours * HOUR_IN_SECONDS )
+			),
+			ARRAY_A
+		);
+	}
+
 	private static function active_for( $trigger ) {
 		if ( null === self::$active ) {
 			global $wpdb;

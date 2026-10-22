@@ -1110,6 +1110,14 @@ class Admin {
 				DB::delete( 'carts', $id );
 				\CheckoutFlow\Mail\Queue::cancel_pending( 'cart:' . $id, null, 'cart deleted' );
 			}
+		} elseif ( 'catchup' === $do ) {
+			$count = 0;
+			foreach ( Automations::unemailed_carts( 24 ) as $cart ) {
+				Automations::on_cart_abandoned( $cart );
+				++$count;
+			}
+			/* translators: %d: number of carts */
+			self::redirect( self::url( 'carts' ), sprintf( _n( 'Recovery emails scheduled for %d cart.', 'Recovery emails scheduled for %d carts.', $count, 'checkoutflow' ), $count ) );
 		} elseif ( 'lost' === $do ) {
 			global $wpdb;
 			foreach ( $ids as $id ) {
