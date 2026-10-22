@@ -200,3 +200,68 @@ function design_css() {
 	}
 	return $css;
 }
+
+/**
+ * Attachment ID for an uploads URL, including resized copies ("-1024x300.png") and
+ * WordPress's "-scaled" originals. 0 when it is not in the Media Library.
+ *
+ * @param string $url Image URL.
+ * @return int
+ */
+function attachment_id_from_url( $url ) {
+	$url = (string) $url;
+	if ( '' === $url ) {
+		return 0;
+	}
+	$id = attachment_url_to_postid( $url );
+	if ( ! $id ) {
+		$id = attachment_url_to_postid( preg_replace( '/-\d+x\d+(?=\.[a-z0-9]+$)/i', '', $url ) );
+	}
+	if ( ! $id ) {
+		$id = attachment_url_to_postid( preg_replace( '/(\.[a-z0-9]+)$/i', '-scaled$1', preg_replace( '/-\d+x\d+(?=\.[a-z0-9]+$)/i', '', $url ) ) );
+	}
+	return (int) $id;
+}
+
+/**
+ * Size in bytes of an image on this site (0 if unknown or remote).
+ *
+ * @param string $url Image URL.
+ * @return int
+ */
+function local_image_bytes( $url ) {
+	$up   = wp_get_upload_dir();
+	$path = '';
+	if ( 0 === strpos( (string) $url, $up['baseurl'] ) ) {
+		$path = $up['basedir'] . substr( $url, strlen( $up['baseurl'] ) );
+	}
+	return $path && file_exists( $path ) ? (int) filesize( $path ) : 0;
+}
+
+/**
+ * Responsive <img> for a settings image: Media Library images get srcset/sizes so
+ * browsers download a resized copy instead of the original upload.
+ *
+ * @param string $url   Image URL from a setting.
+ * @param string $sizes sizes attribute.
+ * @param array  $attr  Extra attributes.
+ * @return string
+ */
+function responsive_image( $url, $sizes, $attr = array() ) {
+	$attr = array_merge( array( 'alt' => '', 'decoding' => 'async', 'sizes' => $sizes ), $attr );
+	$id   = attachment_id_from_url( $url );
+	if ( $id ) {
+		$html = wp_get_attachment_image( $id, 'large', false, $attr );
+		if ( $html ) {
+			return $html;
+		}
+	}
+	$out = '<img src="' . esc_url( $url ) . '"';
+	foreach ( $attr as $k => $v ) {
+		if ( 'sizes' !== $k ) {
+			$out .= ' ' . esc_attr( $k ) . '="' . esc_attr( $v ) . '"';
+		}
+	}
+	return $out . '>';
+}
+

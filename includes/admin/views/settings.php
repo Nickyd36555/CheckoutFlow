@@ -104,6 +104,18 @@ $values = Settings::all();
 					if ( ! empty( $f['desc'] ) ) {
 						echo '<p class="description">' . esc_html( $f['desc'] ) . '</p>';
 					}
+					if ( ! empty( $f['image_check'] ) && '' !== (string) $value ) {
+						$cf_bytes = \CheckoutFlow\local_image_bytes( $value );
+						if ( $cf_bytes > MB_IN_BYTES ) {
+							echo '<p class="cf-error">' . esc_html(
+								sprintf(
+									/* translators: %s: file size */
+									__( 'This image is %s. Shoppers see a resized copy when it is in the Media Library, but for the fastest checkout upload a JPG or WebP about 1200 px wide and under 300 KB.', 'checkoutflow' ),
+									size_format( $cf_bytes, 1 )
+								)
+							) . ( \CheckoutFlow\attachment_id_from_url( $value ) ? '' : ' ' . esc_html__( 'This URL is not in the Media Library, so the full file is downloaded at checkout.', 'checkoutflow' ) ) . '</p>';
+						}
+					}
 					?>
 				</td>
 			</tr>

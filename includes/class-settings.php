@@ -522,9 +522,11 @@ class Settings {
 				'default' => '#1f6feb',
 			),
 			'checkout_banner'        => array(
-				'type'    => 'url',
-				'label'   => __( 'Banner image above the form', 'checkoutflow' ),
-				'default' => '',
+				'type'        => 'url',
+				'label'       => __( 'Banner image above the form', 'checkoutflow' ),
+				'default'     => '',
+				'image_check' => true,
+				'desc'        => __( 'Best as a JPG or WebP about 1200 px wide, under 300 KB.', 'checkoutflow' ),
 			),
 			'checkout_button_total'  => array(
 				'type'    => 'checkbox',

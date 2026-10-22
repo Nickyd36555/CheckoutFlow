@@ -83,7 +83,7 @@ if ( $cf_ship_first && isset( $cf_shipping['shipping_phone'] ) ) {
 	<div class="cf-layout">
 		<div class="cf-col-main">
 			<?php if ( $cf_banner ) : ?>
-				<div class="cf-banner"><img src="<?php echo esc_url( $cf_banner ); ?>" alt=""></div>
+				<div class="cf-banner"><?php echo \CheckoutFlow\responsive_image( $cf_banner, '(max-width: 760px) 100vw, 640px', array( 'fetchpriority' => 'high' ) ); // phpcs:ignore WordPress.Security.EscapeOutput ?></div>
 			<?php endif; ?>
 
 			<?php if ( Checkout::show_login_toggle() ) : ?>
